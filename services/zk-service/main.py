@@ -193,6 +193,82 @@ def stats():
     }
 
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8084)
+
+class RecommendationLogRequest(BaseModel):
+    patient_id: str
+    doctor_id: str
+    treatment: str
+    outcome: str
+    causal_effect: float
+    confidence_low: float = 0.0
+    confidence_high: float = 0.0
+    zk_proof_hash: str
+    evidence: dict = {}
+    rec_type: str = "treatment"
+
+
+class DoctorActionRequest(BaseModel):
+    rec_id: str
+    doctor_id: str
+    action: str
+    notes: str = None
+
+
+@app.post("/audit/recommendation")
+def log_recommendation(
+    request: RecommendationLogRequest,
+):
+    """Log a recommendation with ZK proof to audit trail."""
+    from audit_trail import AuditTrail
+    trail = AuditTrail()
+    return trail.log_recommendation(
+        patient_id=request.patient_id,
+        doctor_id=request.doctor_id,
+        treatment=request.treatment,
+        outcome=request.outcome,
+        causal_effect=request.causal_effect,
+        confidence_low=request.confidence_low,
+        confidence_high=request.confidence_high,
+        zk_proof_hash=request.zk_proof_hash,
+        evidence=request.evidence,
+        rec_type=request.rec_type,
+    )
+
+
+@app.post("/audit/action")
+def log_doctor_action(request: DoctorActionRequest):
+    """Log doctor action on a recommendation."""
+    from audit_trail import AuditTrail
+    trail = AuditTrail()
+    return trail.log_doctor_action(
+        rec_id=request.rec_id,
+        doctor_id=request.doctor_id,
+        action=request.action,
+        notes=request.notes,
+    )
+
+
+@app.get("/audit/patient/{patient_id}")
+def get_patient_audit(patient_id: str):
+    """Get full audit trail for a patient."""
+    from audit_trail import AuditTrail
+    trail = AuditTrail()
+    events = trail.get_patient_audit_trail(
+        patient_id
+    )
+    return {"patient_id": patient_id, "events": events}
+
+
+@app.get("/audit/recent")
+def get_recent_audit():
+    """Get recent audit events."""
+    from audit_trail import AuditTrail
+    trail = AuditTrail()
+    return {"events": trail.get_recent_audit_events()}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8084)
