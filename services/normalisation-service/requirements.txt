@@ -1,0 +1,6 @@
+fastapi==0.136.1
+uvicorn==0.47.0
+kafka-python==2.3.1
+psycopg2-binary==2.9.12
+pymongo==4.17.0
+python-dotenv==1.2.2
