@@ -268,3 +268,35 @@ if __name__ == "__main__":
     uvicorn.run(
         app, host="0.0.0.0", port=8086
     )
+
+# ── Prometheus metrics endpoint ──────────────────────
+from prometheus_client import (
+    Counter, Gauge, generate_latest,
+    CONTENT_TYPE_LATEST,
+)
+from fastapi.responses import Response
+
+messages_total = Counter(
+    "axiom_normalisation_messages_total",
+    "Total messages processed",
+    ["status"],
+)
+abnormal_total = Counter(
+    "axiom_normalisation_abnormal_total",
+    "Total abnormal observations detected",
+    ["feature_name"],
+)
+consumer_up = Gauge(
+    "axiom_normalisation_consumer_up",
+    "Whether Kafka consumer is running",
+)
+
+
+@app.get("/metrics")
+def metrics():
+    consumer_up.set(1 if _consumer_running else 0)
+    messages_total.labels(status="processed")._value._value  # noqa
+    return Response(
+        generate_latest(),
+        media_type=CONTENT_TYPE_LATEST,
+    )
