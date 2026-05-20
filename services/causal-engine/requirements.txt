@@ -1,0 +1,12 @@
+fastapi==0.136.1
+uvicorn==0.47.0
+dowhy==0.14
+pandas==3.0.3
+numpy==2.4.6
+psycopg2-binary==2.9.12
+kafka-python==2.3.1
+python-dotenv==1.2.2
+networkx==3.6.1
+scipy==1.17.1
+scikit-learn==1.8.0
+statsmodels==0.14.6
