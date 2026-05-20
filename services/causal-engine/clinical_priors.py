@@ -122,3 +122,14 @@ def get_outcomes_in_data(
         o for o in OUTCOME_NODES
         if o in available_nodes
     ]
+
+# Vital-to-vital causal relationships
+# Used when medication/condition nodes unavailable
+VITAL_PRIOR_EDGES = [
+    ("glucose",     "creatinine"),
+    ("systolic_bp", "heart_rate"),
+    ("heart_rate",  "spo2"),
+    ("creatinine",  "spo2"),
+    ("glucose",     "heart_rate"),
+    ("systolic_bp", "creatinine"),
+]
