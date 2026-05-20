@@ -292,6 +292,32 @@ def detect_all_drift():
     detector = CausalDriftDetector()
     return detector.detect_all_patients()
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8081)
+
+# Global consumer instance
+_kafka_consumer = None
+
+
+@app.on_event("startup")
+async def startup_event():
+    global _kafka_consumer
+    from kafka_consumer import CausalKafkaConsumer
+    _kafka_consumer = CausalKafkaConsumer()
+    _kafka_consumer.start()
+    logger.info(
+        "Causal engine started with Kafka consumer"
+    )
+
+
+@app.get("/causal/consumer/status")
+def consumer_status():
+    """Kafka consumer status and rebuild stats."""
+    if _kafka_consumer is None:
+        return {"status": "not_started"}
+    return _kafka_consumer.status()
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8081)
