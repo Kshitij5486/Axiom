@@ -197,6 +197,75 @@ def list_patients_with_graphs():
     return {"patients": rows, "total": len(rows)}
 
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8081)
+
+class SimulationRequest(BaseModel):
+    treatment: str
+    outcome: str
+    intervention_value: float
+    n_simulations: int = 1000
+
+
+class MultiOutcomeRequest(BaseModel):
+    treatment: str
+    intervention_value: float
+    outcomes: list = None
+    n_simulations: int = 1000
+
+
+@app.post("/causal/simulate/{patient_id}")
+def simulate_intervention(
+    patient_id: str,
+    request: SimulationRequest,
+):
+    """
+    Monte Carlo simulation of an intervention.
+    Returns distribution of outcomes (1000 samples).
+
+    Example:
+      POST /causal/simulate/{patient_id}
+      {
+        "treatment": "glucose",
+        "outcome": "creatinine",
+        "intervention_value": -20.0
+      }
+    """
+    from intervention_simulator import (
+        InterventionSimulator,
+    )
+    simulator = InterventionSimulator()
+    return simulator.simulate(
+        patient_id=patient_id,
+        treatment=request.treatment,
+        outcome=request.outcome,
+        intervention_value=request.intervention_value,
+        n_simulations=request.n_simulations,
+    )
+
+
+@app.post("/causal/simulate-all-outcomes/{patient_id}")
+def simulate_all_outcomes(
+    patient_id: str,
+    request: MultiOutcomeRequest,
+):
+    """
+    Simulate one intervention across all
+    causally connected outcomes.
+    """
+    from intervention_simulator import (
+        InterventionSimulator,
+    )
+    simulator = InterventionSimulator()
+    return simulator.simulate_multiple_outcomes(
+        patient_id=patient_id,
+        treatment=request.treatment,
+        intervention_value=request.intervention_value,
+        outcomes=request.outcomes,
+        n_simulations=request.n_simulations,
+    )
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8081)
