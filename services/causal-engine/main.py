@@ -266,6 +266,32 @@ def simulate_all_outcomes(
         n_simulations=request.n_simulations,
     )
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8081)
+
+@app.get("/causal/drift/{patient_id}")
+def detect_drift(patient_id: str):
+    """
+    Detect causal drift for a patient.
+    Compares current vs previous causal graph.
+    Flags relationships that changed significantly.
+    """
+    from drift_detector import CausalDriftDetector
+    detector = CausalDriftDetector()
+    return detector.detect_drift(patient_id)
+
+
+@app.get("/causal/drift-all")
+def detect_all_drift():
+    """
+    Run drift detection across all patients
+    with at least 2 graph versions.
+    """
+    from drift_detector import CausalDriftDetector
+    detector = CausalDriftDetector()
+    return detector.detect_all_patients()
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8081)
