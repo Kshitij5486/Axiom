@@ -1,0 +1,38 @@
+﻿server:
+  port: 8080
+
+spring:
+  application:
+    name: axiom-fhir-adapter
+  datasource:
+    url: jdbc:postgresql://localhost:5439/axiom
+    username: axiom_user
+    password: axiom_secret
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+  kafka:
+    bootstrap-servers: localhost:9094
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.axiom: INFO
+    ca.uhn.fhir: WARN
