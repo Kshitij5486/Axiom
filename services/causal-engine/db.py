@@ -97,6 +97,7 @@ def save_causal_graph(
     node_list: list,
     samples_used: int,
     build_time_ms: float,
+    zk_integrity_proof: str = None,
 ):
     conn = get_conn()
     cursor = conn.cursor()
@@ -118,8 +119,8 @@ def save_causal_graph(
             patient_id, adjacency_json,
             effect_sizes, node_list,
             samples_used, build_time_ms,
-            is_current
-        ) VALUES (%s, %s, %s, %s, %s, %s, TRUE)
+            is_current, zk_integrity_proof
+        ) VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s)
         """,
         (
             patient_id,
@@ -128,6 +129,7 @@ def save_causal_graph(
             json.dumps(node_list),
             samples_used,
             build_time_ms,
+            zk_integrity_proof,
         ),
     )
     conn.commit()

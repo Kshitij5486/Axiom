@@ -269,22 +269,7 @@ class PatientCausalGraphBuilder:
             time.perf_counter() - start
         ) * 1000
 
-        try:
-            save_causal_graph(
-                patient_id=patient_id,
-                adjacency_json=edge_list,
-                effect_sizes=effect_sizes,
-                node_list=node_list,
-                samples_used=len(df),
-                build_time_ms=round(build_time_ms, 2),
-            )
-        except Exception as e:
-            logger.error(
-                "Save failed %s: %s",
-                patient_id[:8], e,
-            )
-
-        # Generate ZK integrity proof
+        # Generate ZK integrity proof BEFORE saving
         zk_proof = None
         try:
             zk_proof = generate_graph_proof(
@@ -301,7 +286,23 @@ class PatientCausalGraphBuilder:
                 )
         except Exception as e:
             logger.warning(
-                "ZK proof skipped: %s", e, exc_info=True
+                "ZK proof skipped: %s", e
+            )
+
+        try:
+            save_causal_graph(
+                patient_id=patient_id,
+                adjacency_json=edge_list,
+                effect_sizes=effect_sizes,
+                node_list=node_list,
+                samples_used=len(df),
+                build_time_ms=round(build_time_ms, 2),
+                zk_integrity_proof=zk_proof,
+            )
+        except Exception as e:
+            logger.error(
+                "Save failed %s: %s",
+                patient_id[:8], e,
             )
 
         self._graphs_built += 1
