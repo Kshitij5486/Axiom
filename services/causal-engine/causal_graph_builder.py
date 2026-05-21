@@ -20,6 +20,7 @@ from clinical_priors import (
     MIN_OBSERVATIONS,
     get_prior_edges_for_nodes,
 )
+from zk_client import generate_graph_proof
 from db import (
     fetch_patient_observations,
     save_causal_graph,
@@ -283,6 +284,26 @@ class PatientCausalGraphBuilder:
                 patient_id[:8], e,
             )
 
+        # Generate ZK integrity proof
+        zk_proof = None
+        try:
+            zk_proof = generate_graph_proof(
+                graph_id=str(uuid.uuid4()),
+                patient_id=patient_id,
+                edges=edge_list,
+                effect_sizes=effect_sizes,
+                built_at=datetime.now(timezone.utc).isoformat(),
+            )
+            if zk_proof:
+                logger.info(
+                    "ZK proof: patient=%s proof=%s",
+                    patient_id[:8], zk_proof[:12],
+                )
+        except Exception as e:
+            logger.warning(
+                "ZK proof skipped: %s", e, exc_info=True
+            )
+
         self._graphs_built += 1
         result = {
             "patient_id": patient_id,
@@ -296,6 +317,7 @@ class PatientCausalGraphBuilder:
             "samples_used": len(df),
             "build_time_ms": round(build_time_ms, 2),
             "empty": len(effect_sizes) == 0,
+            "zk_integrity_proof": zk_proof,
             "built_at": datetime.now(
                 timezone.utc
             ).isoformat(),
