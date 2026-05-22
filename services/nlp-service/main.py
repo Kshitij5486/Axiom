@@ -421,6 +421,128 @@ def train_all_detectors():
         "total": trained + failed,
     }
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8083)
+
+@app.post("/anomaly/scan/{patient_id}")
+def full_anomaly_scan(patient_id: str):
+    """
+    Full anomaly scan with alert pipeline:
+      1. Score vitals (Isolation Forest)
+      2. Compute 2h predictive alerts
+      3. Save alerts to MongoDB
+      4. Publish to Kafka alerts.clinical
+      5. Generate ZK proof per alert
+      6. Broadcast via WebSocket
+
+    This is the production endpoint called
+    every time new vitals arrive.
+    """
+    from db import get_patient_vitals_series
+    from anomaly_detector import get_registry
+    from alert_pipeline import get_pipeline
+    import numpy as np
+
+    registry = get_registry()
+    pipeline = get_pipeline()
+
+    # Auto-train if not trained
+    detector = registry.get_or_create(patient_id)
+    if not detector.is_trained:
+        features = [
+            "glucose", "creatinine", "heart_rate",
+            "systolic_bp", "spo2",
+        ]
+        feature_series = {}
+        for feature in features:
+            series = get_patient_vitals_series(
+                patient_id, feature, limit=20
+            )
+            feature_series[feature] = [
+                r["value_quantity"] for r in series
+            ]
+        min_len = min(
+            len(v) for v in feature_series.values()
+        )
+        if min_len >= 5:
+            matrix = np.array([
+                [feature_series[f][i] for f in features]
+                for i in range(min_len)
+            ], dtype=np.float32)
+            registry.train_patient(patient_id, matrix)
+
+    if not detector.is_trained:
+        return {
+            "patient_id": patient_id,
+            "error": "Insufficient data to train",
+        }
+
+    # Get latest vitals
+    features = [
+        "glucose", "creatinine", "heart_rate",
+        "systolic_bp", "spo2",
+    ]
+    latest = {}
+    for feature in features:
+        series = get_patient_vitals_series(
+            patient_id, feature, limit=1
+        )
+        if series:
+            latest[feature] = series[0]["value_quantity"]
+
+    # Score
+    score_result = detector.score(latest)
+
+    # Predictive alerts
+    predictive_alerts = []
+    for feature in features:
+        series = get_patient_vitals_series(
+            patient_id, feature, limit=5
+        )
+        if len(series) >= 3:
+            values = [
+                r["value_quantity"] for r in series
+            ]
+            pred = detector.predict_2h(values, feature)
+            if pred and pred.get(
+                "will_breach_threshold"
+            ):
+                predictive_alerts.append(pred)
+
+    # Process through alert pipeline
+    processed_alerts = pipeline.process_alerts(
+        patient_id=patient_id,
+        alerts=score_result.get("alerts", []),
+        predictive_alerts=predictive_alerts,
+        websocket_clients=_connected_clients,
+    )
+
+    import numpy as np
+    def convert(obj):
+        if isinstance(obj, (bool, int, float, str, type(None))):
+            return obj
+        if hasattr(obj, 'item'):
+            return obj.item()
+        if isinstance(obj, dict):
+            return {k: convert(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [convert(i) for i in obj]
+        return obj
+
+    return convert({
+        "patient_id": patient_id,
+        "anomaly_detected": score_result.get("anomaly"),
+        "isolation_forest_score": score_result.get(
+            "isolation_forest_score"
+        ),
+        "alerts_fired": len(processed_alerts),
+        "alerts": processed_alerts,
+        "predictive_alerts": predictive_alerts,
+        "current_vitals": latest,
+        "pipeline_status": pipeline.status(),
+    })
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8083)
