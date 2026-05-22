@@ -212,6 +212,79 @@ def aggregator_status():
         return {"error": "Aggregator not initialized"}
     return _aggregator.status()
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8085)
+
+# Global coordinator
+_coordinator = None
+
+
+@app.on_event("startup")
+async def init_coordinator():
+    from federated_coordinator import FederatedCoordinator
+    global _coordinator
+    _coordinator = FederatedCoordinator(
+        node_ids=_node_ids,
+        max_byzantine=1,
+        min_consensus=2,
+        global_lr=0.1,
+    )
+    logger.info("Federated coordinator initialized")
+
+
+@app.post("/federated/round")
+def run_federation_round():
+    """
+    Execute one complete federation round.
+    Collects gradients, runs Bulyan aggregation,
+    updates global model, stores in PostgreSQL.
+    """
+    if _coordinator is None or not _hospital_nodes:
+        return {"error": "Not initialized"}
+
+    result = _coordinator.run_round(
+        hospital_nodes=_hospital_nodes,
+    )
+    return result
+
+
+@app.post("/federated/round/with-attack")
+def run_round_with_attack():
+    """
+    Run a federation round with Byzantine attack
+    injected on hospital-3. Tests that Bulyan
+    detects and excludes the compromised node.
+    """
+    if _coordinator is None or not _hospital_nodes:
+        return {"error": "Not initialized"}
+
+    result = _coordinator.run_round(
+        hospital_nodes=_hospital_nodes,
+        inject_attack_on="hospital-3",
+    )
+    result["attack_injected_on"] = "hospital-3"
+    return result
+
+
+@app.get("/federated/coordinator/status")
+def coordinator_status():
+    """Global model weights + round history."""
+    if _coordinator is None:
+        return {"error": "Not initialized"}
+    return _coordinator.status()
+
+
+@app.get("/federated/weights")
+def get_global_weights():
+    """Current global model weights."""
+    if _coordinator is None:
+        return {"error": "Not initialized"}
+    return {
+        "global_weights": _coordinator.get_global_weights(),
+        "round_number": _coordinator.round_number,
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8085)
