@@ -285,6 +285,96 @@ def get_global_weights():
         "round_number": _coordinator.round_number,
     }
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8085)
+
+# Global reputation scorer
+_reputation = None
+
+
+@app.on_event("startup")
+async def init_reputation():
+    from reputation_scorer import ReputationScorer
+    global _reputation
+    _reputation = ReputationScorer(
+        node_ids=_node_ids
+    )
+    logger.info("Reputation scorer initialized")
+
+
+@app.get("/federated/reputation")
+def get_reputation():
+    """Current reputation scores for all nodes."""
+    if _reputation is None:
+        return {"error": "Not initialized"}
+    return _reputation.status()
+
+
+@app.post("/federated/round/reputation")
+def run_round_with_reputation():
+    """
+    Run a full federation round with reputation scoring.
+    Reputation scores feed into Byzantine aggregation
+    to weight nodes by their historical trustworthiness.
+    """
+    if _coordinator is None or not _hospital_nodes:
+        return {"error": "Not initialized"}
+    if _reputation is None:
+        return {"error": "Reputation scorer not initialized"}
+
+    # Use current reputation scores in aggregation
+    scores = _reputation.get_scores()
+
+    result = _coordinator.run_round(
+        hospital_nodes=_hospital_nodes,
+        reputation_scores=scores,
+    )
+
+    # Update reputation based on round result
+    updated_scores = _reputation.update(
+        accepted_nodes=result["accepted_nodes"],
+        rejected_nodes=result["rejected_nodes"],
+        participating_nodes=result["participating_nodes"],
+    )
+
+    result["reputation_scores"] = updated_scores
+    result["excluded_nodes"] = _reputation.excluded_nodes
+    result["active_nodes"] = _reputation.get_active_nodes()
+    return result
+
+
+@app.post("/federated/round/reputation/with-attack")
+def run_round_reputation_with_attack():
+    """
+    Run reputation round with Byzantine attack on hospital-3.
+    After enough rounds, hospital-3 should be auto-excluded.
+    """
+    if _coordinator is None or not _hospital_nodes:
+        return {"error": "Not initialized"}
+
+    scores = _reputation.get_scores()
+
+    result = _coordinator.run_round(
+        hospital_nodes=_hospital_nodes,
+        reputation_scores=scores,
+        inject_attack_on="hospital-3",
+    )
+
+    updated_scores = _reputation.update(
+        accepted_nodes=result["accepted_nodes"],
+        rejected_nodes=result["rejected_nodes"],
+        participating_nodes=result["participating_nodes"],
+    )
+
+    result["reputation_scores"] = updated_scores
+    result["excluded_nodes"] = list(
+        _reputation.excluded_nodes
+    )
+    result["active_nodes"] = _reputation.get_active_nodes()
+    result["attack_injected_on"] = "hospital-3"
+    return result
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8085)
