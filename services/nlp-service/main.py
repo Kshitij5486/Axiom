@@ -115,6 +115,64 @@ def get_patient_alerts(patient_id: str):
     }
 
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8083)
+
+@app.post("/nlp/extract/{patient_id}")
+def extract_patient_entities(patient_id: str):
+    """
+    Extract clinical entities from all notes
+    for a patient using dictionary NER.
+    Returns conditions, drugs, vitals, symptoms.
+    """
+    from db import get_clinical_notes, save_nlp_extraction
+    from entity_extractor import extract_from_note
+
+    notes = get_clinical_notes(patient_id, limit=5)
+    if not notes:
+        return {
+            "patient_id": patient_id,
+            "error": "No clinical notes found.",
+        }
+
+    all_results = []
+    for note in notes:
+        result = extract_from_note(note)
+        extraction_id = save_nlp_extraction(
+            patient_id=patient_id,
+            note_id=note.get(
+                "patient_name", "unknown"
+            ),
+            entities=result["entities"],
+            relations=[],
+            model_used=result["model"],
+        )
+        result["extraction_id"] = extraction_id
+        all_results.append(result)
+
+    # Aggregate all entities
+    all_entities = []
+    for r in all_results:
+        all_entities.extend(r["entities"])
+
+    # Group by label
+    by_label = {}
+    for ent in all_entities:
+        label = ent["label"]
+        if label not in by_label:
+            by_label[label] = []
+        by_label[label].append(ent["canonical"])
+
+    return {
+        "patient_id": patient_id,
+        "notes_processed": len(notes),
+        "total_entities": len(all_entities),
+        "entities_by_label": by_label,
+        "model": all_results[0]["model"] if all_results else "none",
+        "extractions": all_results,
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8083)
