@@ -49,10 +49,15 @@ def update_causal_graph(
     Returns:
         Summary of updates made
     """
-    from db import (
-        get_current_causal_effects,
-        update_causal_graph_effects,
+    import importlib.util, os
+    spec = importlib.util.spec_from_file_location(
+        "nlp_db",
+        os.path.join(os.path.dirname(__file__), "db.py")
     )
+    nlp_db = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(nlp_db)
+    get_current_causal_effects = nlp_db.get_current_causal_effects
+    update_causal_graph_effects = nlp_db.update_causal_graph_effects
 
     if not relations:
         return {

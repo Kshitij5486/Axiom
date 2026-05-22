@@ -8,6 +8,7 @@ paths = [
     os.path.join(root, "services", "zk-service"),
     os.path.join(root, "services", "federated-service"),
     os.path.join(root, "services", "survival-service"),
+    os.path.join(root, "services", "nlp-service"),
 ]
 
 for p in paths:
