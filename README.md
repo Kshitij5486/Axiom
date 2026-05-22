@@ -40,15 +40,17 @@ Layer 7  Kubernetes + CI/CD + v1.0.0              ← Sprint 12
 
 ---
 
-## Current Status — v0.3.0
+## Current Status — v0.4.0
 
-Sprints 1-3 complete. Data ingestion, causal engine, and ZK trust layer fully operational.
-Services running:    11
+Sprints 1-4 complete. Data ingestion, causal engine, and ZK trust layer fully operational.
+Services running:    12
 Patients ingested:   50
 Observations:        5000
 Causal graphs:       50 (avg 10 effects, 212ms)
 ZK proofs:           auto-generated per graph build
-Unit tests:          43 passed, 0 failed
+Federated nodes:     3 (hospital-1,2,3)
+Byzantine detected:  hospital-3 auto-excluded
+Unit tests:          66 passed, 0 failed
 Kafka topics:        7
 
 ---
