@@ -274,6 +274,153 @@ def enrich_causal_graph(patient_id: str):
         "dag_update": update_result,
     }
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8083)
+
+@app.post("/anomaly/train/{patient_id}")
+def train_anomaly_detector(patient_id: str):
+    """
+    Train Isolation Forest on patient vital history.
+    Uses last 20 readings of each vital from PostgreSQL.
+    """
+    from db import get_patient_vitals_series
+    from anomaly_detector import get_registry
+    import numpy as np
+
+    registry = get_registry()
+
+    # Build vitals matrix
+    features = [
+        "glucose", "creatinine", "heart_rate",
+        "systolic_bp", "spo2",
+    ]
+    feature_series = {}
+    for feature in features:
+        series = get_patient_vitals_series(
+            patient_id, feature, limit=20
+        )
+        feature_series[feature] = [
+            r["value_quantity"] for r in series
+        ]
+
+    min_len = min(
+        len(v) for v in feature_series.values()
+    )
+    if min_len < 5:
+        return {
+            "patient_id": patient_id,
+            "error": f"Insufficient data: {min_len} readings",
+        }
+
+    matrix = np.array([
+        [feature_series[f][i] for f in features]
+        for i in range(min_len)
+    ], dtype=np.float32)
+
+    success = registry.train_patient(
+        patient_id, matrix
+    )
+
+    return {
+        "patient_id": patient_id,
+        "trained": success,
+        "samples": min_len,
+        "features": features,
+    }
+
+
+@app.post("/anomaly/score/{patient_id}")
+def score_patient_vitals(patient_id: str):
+    """
+    Score current patient vitals for anomalies.
+    Returns Isolation Forest score + threshold alerts
+    + 2-hour predictive alerts.
+    """
+    from db import get_patient_vitals_series
+    from anomaly_detector import get_registry
+    import numpy as np
+
+    registry = get_registry()
+    detector = registry.get_or_create(patient_id)
+
+    if not detector.is_trained:
+        return {
+            "patient_id": patient_id,
+            "error": "Train detector first: "
+                     "POST /anomaly/train/{patient_id}",
+        }
+
+    # Get latest reading
+    features = [
+        "glucose", "creatinine", "heart_rate",
+        "systolic_bp", "spo2",
+    ]
+    latest = {}
+    for feature in features:
+        series = get_patient_vitals_series(
+            patient_id, feature, limit=1
+        )
+        if series:
+            latest[feature] = series[0]["value_quantity"]
+
+    # Score current reading
+    score_result = detector.score(latest)
+
+    # Predictive 2-hour alerts
+    predictive_alerts = []
+    for feature in features:
+        series = get_patient_vitals_series(
+            patient_id, feature, limit=5
+        )
+        if len(series) >= 3:
+            values = [
+                r["value_quantity"] for r in series
+            ]
+            pred = detector.predict_2h(values, feature)
+            if pred and pred.get(
+                "will_breach_threshold"
+            ):
+                predictive_alerts.append(pred)
+
+    score_result["predictive_alerts"] = predictive_alerts
+    score_result["current_vitals"] = latest
+
+    # Convert numpy types to Python native for JSON
+    import json, numpy as np
+    def convert(obj):
+        if isinstance(obj, np.bool_): return bool(obj)
+        if isinstance(obj, np.integer): return int(obj)
+        if isinstance(obj, np.floating): return float(obj)
+        if isinstance(obj, dict): return {k: convert(v) for k, v in obj.items()}
+        if isinstance(obj, list): return [convert(i) for i in obj]
+        return obj
+
+    return convert(score_result)
+
+
+@app.post("/anomaly/train-all")
+def train_all_detectors():
+    """Train anomaly detectors for all patients."""
+    from db import get_all_patient_ids
+    trained = 0
+    failed = 0
+    for patient_id in get_all_patient_ids():
+        try:
+            from fastapi.testclient import TestClient
+            result = train_anomaly_detector(patient_id)
+            if result.get("trained"):
+                trained += 1
+            else:
+                failed += 1
+        except Exception:
+            failed += 1
+    return {
+        "trained": trained,
+        "failed": failed,
+        "total": trained + failed,
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8083)
