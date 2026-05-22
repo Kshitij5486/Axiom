@@ -161,6 +161,75 @@ def predict_survival(patient_id: str):
     result["patient_id"] = patient_id
     return result
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8082)
+
+# Global PPO model
+_ppo_model = None
+
+
+@app.post("/survival/train/ppo")
+def train_ppo_model():
+    """
+    Train PPO treatment policy on all patients.
+    Uses ClinicalPatientEnv with 6-action formulary.
+    10,000 timesteps, MlpPolicy.
+    """
+    global _ppo_model
+    from patient_encoder import encode_all_patients
+    from ppo_policy import PPOTreatmentPolicy
+
+    logger.info("Training PPO policy...")
+    encoded = encode_all_patients()
+
+    if len(encoded) < 5:
+        return {"error": "Insufficient patients"}
+
+    _ppo_model = PPOTreatmentPolicy()
+    result = _ppo_model.train(
+        patient_states=encoded,
+        cox_model=_cox_model,
+        total_timesteps=10000,
+    )
+    return result
+
+
+@app.get("/survival/recommend/{patient_id}")
+def recommend_treatment(patient_id: str):
+    """
+    Get PPO treatment recommendation for a patient.
+    Returns ranked actions with immediate rewards.
+    """
+    if _ppo_model is None or not _ppo_model.is_trained:
+        return {
+            "error": "PPO model not trained. "
+                     "Call POST /survival/train/ppo first."
+        }
+
+    from patient_encoder import encode_patient
+    state = encode_patient(patient_id)
+    if state is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Cannot encode patient {patient_id}",
+        )
+
+    result = _ppo_model.recommend(
+        state=state,
+        patient_id=patient_id,
+        top_k=6,
+    )
+    return result
+
+
+@app.get("/survival/ppo/status")
+def ppo_status():
+    """PPO policy training status."""
+    if _ppo_model is None:
+        return {"status": "not_trained"}
+    return _ppo_model.status()
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8082)
