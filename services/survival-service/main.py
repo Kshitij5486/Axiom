@@ -220,6 +220,38 @@ def recommend_treatment(patient_id: str):
         patient_id=patient_id,
         top_k=6,
     )
+
+    # Generate ZK proof + log to audit trail
+    from zk_client import (
+        generate_recommendation_proof,
+        log_to_audit_trail,
+    )
+    best_action = result.get("recommended_action", "")
+    target = result.get("target_vital", "")
+    reward = 0.0
+    if result.get("ranked_actions"):
+        reward = result["ranked_actions"][0].get(
+            "immediate_reward", 0.0
+        )
+
+    proof_hash = generate_recommendation_proof(
+        patient_id=patient_id,
+        action_name=best_action,
+        target_vital=target,
+        immediate_reward=reward,
+    )
+    rec_id = log_to_audit_trail(
+        patient_id=patient_id,
+        action_name=best_action,
+        target_vital=target,
+        immediate_reward=reward,
+        proof_hash=proof_hash or "",
+    )
+
+    result["zk_proof_hash"] = proof_hash
+    result["audit_rec_id"] = rec_id
+    result["zk_proven"] = proof_hash is not None
+    result["audit_logged"] = rec_id is not None
     return result
 
 
