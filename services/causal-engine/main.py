@@ -344,6 +344,115 @@ def get_federated_weights():
         "alpha_formula": "min(1.0, n_observations / 20)",
     }
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8081)
+
+@app.get("/causal/full/{patient_id}")
+def get_full_patient_analysis(patient_id: str):
+    """
+    Full patient analysis in one call:
+      1. Causal graph (Sprint 2)
+      2. Survival curve (Sprint 5 Cox)
+      3. Treatment recommendation (Sprint 5 PPO)
+      4. ZK proof on recommendation (Sprint 3)
+
+    This is the main clinical decision support endpoint.
+    """
+    import json
+    from db import load_causal_graph
+    from survival_client import (
+        get_survival_prediction,
+        get_treatment_recommendation,
+    )
+
+    # Load causal graph
+    graph = load_causal_graph(patient_id)
+    if not graph:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No causal graph for {patient_id}. "
+                   f"Run /causal/build/{patient_id} first.",
+        )
+
+    # Parse JSON fields
+    for field in ["adjacency_json", "effect_sizes", "node_list"]:
+        if field in graph and isinstance(graph[field], str):
+            graph[field] = json.loads(graph[field])
+
+    # Fetch survival prediction
+    survival = get_survival_prediction(patient_id)
+
+    # Fetch treatment recommendation
+    recommendation = get_treatment_recommendation(
+        patient_id
+    )
+
+    return {
+        "patient_id": patient_id,
+        "causal_graph": {
+            "node_count": len(
+                graph.get("node_list", [])
+            ),
+            "edge_count": len(
+                graph.get("adjacency_json", [])
+            ),
+            "top_effects": dict(
+                list(
+                    graph.get("effect_sizes", {}).items()
+                )[:3]
+            ),
+            "zk_integrity_proof": graph.get(
+                "zk_integrity_proof"
+            ),
+        },
+        "survival": {
+            "risk_score": survival.get(
+                "risk_score"
+            ) if survival else None,
+            "median_survival_days": survival.get(
+                "median_survival_days"
+            ) if survival else None,
+            "survival_30d": survival.get(
+                "survival_probabilities", {}
+            ).get("30") if survival else None,
+            "survival_90d": survival.get(
+                "survival_probabilities", {}
+            ).get("90") if survival else None,
+        } if survival else {"status": "unavailable"},
+        "recommendation": {
+            "action": recommendation.get(
+                "recommended_action"
+            ) if recommendation else None,
+            "target": recommendation.get(
+                "target_vital"
+            ) if recommendation else None,
+            "reward": recommendation.get(
+                "ranked_actions", [{}]
+            )[0].get(
+                "immediate_reward"
+            ) if recommendation else None,
+            "zk_proof_hash": recommendation.get(
+                "zk_proof_hash"
+            ) if recommendation else None,
+            "zk_proven": recommendation.get(
+                "zk_proven", False
+            ) if recommendation else False,
+            "audit_logged": recommendation.get(
+                "audit_logged", False
+            ) if recommendation else False,
+        } if recommendation else {
+            "status": "unavailable"
+        },
+        "pipeline": {
+            "causal_engine": "sprint2",
+            "zk_layer": "sprint3",
+            "federated": "sprint4",
+            "survival_cox": "sprint5",
+            "treatment_ppo": "sprint5",
+        },
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8081)
