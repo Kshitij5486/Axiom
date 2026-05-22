@@ -173,6 +173,50 @@ def extract_patient_entities(patient_id: str):
         "extractions": all_results,
     }
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8083)
+
+@app.post("/nlp/relations/{patient_id}")
+def extract_patient_relations(patient_id: str):
+    """
+    Extract causal relations from clinical notes.
+    Relations feed into causal DAG via EWMA update.
+
+    Example output:
+      "furosemide caused creatinine rise"
+      -> {cause: furosemide, effect: creatinine,
+          direction: causes, nlp_effect: +0.038}
+    """
+    from db import get_clinical_notes
+    from entity_extractor import extract_from_note
+    from relation_extractor import (
+        extract_relations_from_note,
+    )
+
+    notes = get_clinical_notes(patient_id, limit=5)
+    if not notes:
+        return {
+            "patient_id": patient_id,
+            "error": "No clinical notes found.",
+        }
+
+    all_relations = []
+    for note in notes:
+        entity_result = extract_from_note(note)
+        rel_result = extract_relations_from_note(
+            note,
+            entities=entity_result["entities"],
+        )
+        all_relations.extend(rel_result["relations"])
+
+    return {
+        "patient_id": patient_id,
+        "notes_processed": len(notes),
+        "total_relations": len(all_relations),
+        "relations": all_relations,
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8083)
