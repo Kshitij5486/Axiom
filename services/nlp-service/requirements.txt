@@ -1,0 +1,11 @@
+fastapi==0.136.1
+uvicorn==0.47.0
+pymongo==4.17.0
+psycopg2-binary==2.9.12
+kafka-python==2.3.1
+python-dotenv==1.2.2
+scikit-learn==1.8.0
+numpy==2.4.6
+requests==2.34.2
+transformers>=4.30.0
+torch>=2.0.0
