@@ -318,6 +318,32 @@ def consumer_status():
         return {"status": "not_started"}
     return _kafka_consumer.status()
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8081)
+
+@app.get("/causal/federated/weights")
+def get_federated_weights():
+    """
+    Get current global federated model weights
+    and show how they blend with local estimates.
+    """
+    from federated_client import get_global_weights
+    weights = get_global_weights()
+    if not weights:
+        return {
+            "status": "federated_service_offline",
+            "weights": None,
+        }
+    return {
+        "status": "ok",
+        "global_weights": weights,
+        "blend_formula": (
+            "alpha * local + (1-alpha) * federated"
+        ),
+        "alpha_formula": "min(1.0, n_observations / 20)",
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8081)

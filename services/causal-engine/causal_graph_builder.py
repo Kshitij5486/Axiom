@@ -21,6 +21,7 @@ from clinical_priors import (
     get_prior_edges_for_nodes,
 )
 from zk_client import generate_graph_proof
+from federated_client import get_global_weights, blend_with_federated
 from db import (
     fetch_patient_observations,
     save_causal_graph,
@@ -268,6 +269,24 @@ class PatientCausalGraphBuilder:
         build_time_ms = (
             time.perf_counter() - start
         ) * 1000
+
+        # Blend with federated global weights
+        try:
+            fed_weights = get_global_weights()
+            if fed_weights:
+                effect_sizes = blend_with_federated(
+                    local_effects=effect_sizes,
+                    n_observations=len(df),
+                    federated_weights=fed_weights,
+                )
+                logger.info(
+                    'Federated blend applied: patient=%s',
+                    patient_id[:8],
+                )
+        except Exception as e:
+            logger.debug(
+                'Federated blend skipped: %s', e
+            )
 
         # Generate ZK integrity proof BEFORE saving
         zk_proof = None
