@@ -130,6 +130,88 @@ def train_node(node_id: str):
         "noise_multiplier": node.noise_multiplier,
     }
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8085)
+
+# Global Byzantine aggregator
+_aggregator = None
+
+
+@app.on_event("startup")
+async def init_aggregator():
+    from byzantine_aggregator import ByzantineAggregator
+    global _aggregator
+    _aggregator = ByzantineAggregator(
+        max_byzantine=1,
+        min_nodes=2,
+    )
+    logger.info("Byzantine aggregator initialized")
+
+
+@app.post("/federated/aggregate")
+def aggregate_gradients():
+    """
+    Collect gradients from all nodes and run
+    Byzantine-fault-tolerant aggregation.
+    Returns aggregated global gradient + rejected nodes.
+    """
+    if _aggregator is None:
+        return {"error": "Aggregator not initialized"}
+
+    # Collect gradients from all nodes
+    node_gradients = {}
+    for node_id, node in _hospital_nodes.items():
+        grads = node.get_gradients()
+        if grads:
+            node_gradients[node_id] = grads
+
+    if not node_gradients:
+        return {"error": "No gradients collected"}
+
+    result = _aggregator.aggregate(node_gradients)
+    return result
+
+
+@app.post("/federated/aggregate/with-attack")
+def aggregate_with_byzantine_attack():
+    """
+    Test Byzantine detection by injecting an attack
+    from hospital-3 (sign-flip attack).
+    Bulyan should detect and reject hospital-3.
+    """
+    if _aggregator is None:
+        return {"error": "Aggregator not initialized"}
+
+    from byzantine_aggregator import ByzantineAggregator
+
+    node_gradients = {}
+    for node_id, node in _hospital_nodes.items():
+        grads = node.get_gradients()
+        if grads:
+            if node_id == "hospital-3":
+                # Inject Byzantine attack
+                grads = _aggregator.simulate_byzantine_attack(
+                    grads, attack_type="sign_flip"
+                )
+                logger.warning(
+                    "Byzantine attack injected on %s",
+                    node_id,
+                )
+            node_gradients[node_id] = grads
+
+    result = _aggregator.aggregate(node_gradients)
+    result["attack_injected_on"] = "hospital-3"
+    result["attack_type"] = "sign_flip"
+    return result
+
+
+@app.get("/federated/aggregator/status")
+def aggregator_status():
+    if _aggregator is None:
+        return {"error": "Aggregator not initialized"}
+    return _aggregator.status()
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8085)
