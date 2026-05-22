@@ -1,0 +1,234 @@
+syntax = "proto3";
+
+package axiom;
+
+// ── CausalService ──────────────────────────────────
+// Python gRPC server (port 50051)
+// Causal engine internal calls
+
+service CausalService {
+  rpc BuildGraph (BuildGraphRequest)
+      returns (GraphResponse);
+  rpc GetGraph   (GetGraphRequest)
+      returns (GraphResponse);
+  rpc GetEffects (GetEffectsRequest)
+      returns (EffectsResponse);
+}
+
+message BuildGraphRequest {
+  string patient_id = 1;
+  bool   force_rebuild = 2;
+}
+
+message GetGraphRequest {
+  string patient_id = 1;
+}
+
+message GetEffectsRequest {
+  string patient_id = 1;
+  repeated string edge_keys = 2;
+}
+
+message GraphResponse {
+  string patient_id  = 1;
+  string graph_id    = 2;
+  int32  node_count  = 3;
+  int32  edge_count  = 4;
+  repeated CausalEdge edges = 5;
+  string zk_proof    = 6;
+  string built_at    = 7;
+  bool   success     = 8;
+  string error       = 9;
+}
+
+message CausalEdge {
+  string treatment = 1;
+  string outcome   = 2;
+  double effect    = 3;
+  int32  samples   = 4;
+  bool   blended   = 5;
+  bool   nlp_source = 6;
+}
+
+message EffectsResponse {
+  string patient_id = 1;
+  repeated CausalEdge effects = 2;
+  bool success = 3;
+}
+
+// ── ZKBridgeService ────────────────────────────────
+// Rust tonic gRPC server (port 50052)
+// ZK proof generation for high throughput
+
+service ZKBridgeService {
+  rpc GenerateProof (ProofRequest)
+      returns (ProofResponse);
+  rpc VerifyProof   (VerifyRequest)
+      returns (VerifyResponse);
+  rpc BatchProof    (BatchProofRequest)
+      returns (stream ProofResponse);
+}
+
+message ProofRequest {
+  string patient_id       = 1;
+  string recommendation   = 2;
+  double causal_effect    = 3;
+  string graph_id         = 4;
+  string treatment        = 5;
+  string outcome          = 6;
+}
+
+message ProofResponse {
+  string proof_hash  = 1;
+  bool   valid       = 2;
+  string generated_at = 3;
+  string error       = 4;
+}
+
+message VerifyRequest {
+  string proof_hash     = 1;
+  string patient_id     = 2;
+  double causal_effect  = 3;
+}
+
+message VerifyResponse {
+  bool   valid      = 1;
+  string proof_hash = 2;
+  string error      = 3;
+}
+
+message BatchProofRequest {
+  repeated ProofRequest proofs = 1;
+}
+
+// ── SurvivalService ────────────────────────────────
+// Python gRPC server (port 50053)
+
+service SurvivalService {
+  rpc Predict   (PredictRequest)
+      returns (PredictResponse);
+  rpc Recommend (RecommendRequest)
+      returns (RecommendResponse);
+}
+
+message PredictRequest {
+  string patient_id = 1;
+  repeated double state_vector = 2;
+}
+
+message PredictResponse {
+  string patient_id          = 1;
+  double risk_score          = 2;
+  int32  median_survival_days = 3;
+  double survival_30d        = 4;
+  double survival_90d        = 5;
+  double survival_180d       = 6;
+  double survival_365d       = 7;
+  bool   success             = 8;
+  string error               = 9;
+}
+
+message RecommendRequest {
+  string patient_id = 1;
+  repeated double state_vector = 2;
+}
+
+message RecommendResponse {
+  string patient_id         = 1;
+  string recommended_action = 2;
+  string target_vital       = 3;
+  double reward             = 4;
+  string zk_proof_hash      = 5;
+  bool   zk_proven          = 6;
+  bool   success            = 7;
+  string error              = 8;
+}
+
+// ── FederatedService ───────────────────────────────
+// Rust tonic gRPC server (port 50054)
+// High-throughput gradient streaming
+
+service FederatedService {
+  rpc RunRound    (RoundRequest)
+      returns (RoundResponse);
+  rpc GetWeights  (WeightsRequest)
+      returns (WeightsResponse);
+  rpc StreamGradients (stream GradientUpdate)
+      returns (AggregationResult);
+}
+
+message RoundRequest {
+  bool inject_attack = 1;
+  string attack_node = 2;
+}
+
+message RoundResponse {
+  int32  round_number      = 1;
+  bool   consensus_reached = 2;
+  repeated string accepted_nodes = 3;
+  repeated string rejected_nodes = 4;
+  repeated WeightEntry global_weights = 5;
+}
+
+message WeightsRequest {}
+
+message WeightsResponse {
+  repeated WeightEntry weights = 1;
+  int32 total_rounds = 2;
+}
+
+message WeightEntry {
+  string edge   = 1;
+  double weight = 2;
+}
+
+message GradientUpdate {
+  string node_id = 1;
+  repeated double gradients = 2;
+  double dp_noise_sigma = 3;
+}
+
+message AggregationResult {
+  bool   success         = 1;
+  int32  accepted_nodes  = 2;
+  int32  rejected_nodes  = 3;
+  repeated WeightEntry updated_weights = 4;
+}
+
+// ── AlertService ───────────────────────────────────
+// Python gRPC server (embedded in NLP service)
+
+service AlertService {
+  rpc Subscribe (AlertSubscribeRequest)
+      returns (stream AlertEvent);
+  rpc Acknowledge (AcknowledgeRequest)
+      returns (AcknowledgeResponse);
+}
+
+message AlertSubscribeRequest {
+  string patient_id = 1;
+  repeated string severity_filter = 2;
+}
+
+message AlertEvent {
+  string alert_id      = 1;
+  string patient_id    = 2;
+  string alert_type    = 3;
+  string feature       = 4;
+  double current_value = 5;
+  double threshold     = 6;
+  string severity      = 7;
+  string message       = 8;
+  string zk_proof_hash = 9;
+  string timestamp     = 10;
+}
+
+message AcknowledgeRequest {
+  string alert_id  = 1;
+  string doctor_id = 2;
+}
+
+message AcknowledgeResponse {
+  bool   success   = 1;
+  string alert_id  = 2;
+}
