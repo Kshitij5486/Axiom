@@ -77,6 +77,59 @@ def federation_status():
     }
 
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8085)
+
+# Global hospital nodes
+_hospital_nodes = {}
+
+
+@app.on_event("startup")
+async def startup():
+    from hospital_node import HospitalNode
+    global _hospital_nodes
+    for node_id in _node_ids:
+        node = HospitalNode(
+            node_id=node_id,
+            total_nodes=_total_nodes,
+        )
+        node.load_patients()
+        _hospital_nodes[node_id] = node
+    logger.info(
+        "All hospital nodes initialized: %d nodes",
+        len(_hospital_nodes),
+    )
+
+
+@app.get("/federated/nodes/{node_id}")
+def get_node_status(node_id: str):
+    """Get status of a specific hospital node."""
+    if node_id not in _hospital_nodes:
+        return {"error": f"Node {node_id} not found"}
+    return _hospital_nodes[node_id].status()
+
+
+@app.post("/federated/nodes/{node_id}/train")
+def train_node(node_id: str):
+    """
+    Trigger local training on a hospital node.
+    Returns DP-noised gradients.
+    """
+    if node_id not in _hospital_nodes:
+        return {"error": f"Node {node_id} not found"}
+    node = _hospital_nodes[node_id]
+    gradients = node.get_gradients()
+    return {
+        "node_id": node_id,
+        "gradients": gradients,
+        "n_patients": node.n_patients,
+        "training_round": node.training_rounds,
+        "loss": node.last_loss,
+        "dp_applied": True,
+        "noise_multiplier": node.noise_multiplier,
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8085)
