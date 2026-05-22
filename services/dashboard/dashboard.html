@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AXIOM | Command Centre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Albert+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+::selection{background:#004953;color:#F9F7F2}
+:root{
+  --brand:#004953;--brand-sec:#F9F7F2;--brand-acc:#F0ECE6;
+  --bg:#F9F7F2;--surface:#FFFFFF;
+  --tp:#3E2723;--ts:#5D4037;--ton:#F9F7F2;
+  --danger:#C0392B;--warning:#D68910;--success:#1E8449;--info:#004953;
+  --r-card:18.8px;--r-btn:117px;
+  --sh-card:0 20px 40px rgba(62,39,35,0.05);
+  --sh-active:0 8px 20px rgba(0,0,0,0.1);
+  --sh-cta:0 10px 30px rgba(0,73,83,0.2);
+  --ease:cubic-bezier(0.16,1,0.3,1);
+}
+html,body{height:100%;overflow:hidden;font-family:'Albert Sans',sans-serif;background:var(--bg);color:var(--ts)}
+.font-primary{font-family:'Playfair Display',serif}
+.font-secondary{font-family:'Inter Tight',sans-serif}
+
+/* ── LOGIN ── */
+#login-screen{
+  position:fixed;inset:0;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;z-index:900;
+  transition:opacity 0.7s var(--ease),transform 0.7s var(--ease);
+}
+#login-screen.exit{opacity:0;transform:scale(0.96);pointer-events:none}
+.login-card{
+  background:var(--surface);border-radius:28px;
+  box-shadow:0 40px 80px rgba(62,39,35,0.1);
+  border:1px solid rgba(0,73,83,0.08);
+  padding:52px 48px;max-width:420px;width:100%;text-align:center;
+}
+.login-logo{
+  width:60px;height:60px;background:var(--brand);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--ton);
+  margin:0 auto 24px;
+}
+.login-title{font-family:'Playfair Display',serif;font-size:26px;font-style:italic;color:var(--tp);margin-bottom:6px}
+.login-sub{font-family:'Albert Sans',sans-serif;font-size:13px;color:rgba(93,64,55,0.5);margin-bottom:32px}
+.login-input{
+  width:100%;background:var(--bg);
+  border:1px solid rgba(0,73,83,0.15);border-radius:var(--r-btn);
+  padding:13px 18px;font-family:'Albert Sans',sans-serif;font-size:14px;
+  color:var(--tp);outline:none;margin-bottom:12px;
+  transition:border-color 0.2s;display:block;
+}
+.login-input:focus{border-color:var(--brand)}
+.login-btn{
+  width:100%;background:var(--brand);color:var(--ton);border:none;
+  border-radius:var(--r-btn);padding:15px;
+  font-family:'Inter Tight',sans-serif;font-size:12px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.2em;cursor:pointer;
+  box-shadow:var(--sh-cta);transition:transform 0.3s var(--ease);margin-top:4px;
+}
+.login-btn:hover{transform:scale(1.02)}
+
+/* ── NAV ── */
+#nav{
+  position:fixed;top:12px;left:50%;
+  transform:translateX(-50%);
+  width:calc(100% - 32px);max-width:1500px;height:72px;
+  background:rgba(0,73,83,0.96);backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.1);border-radius:var(--r-btn);
+  display:flex;align-items:center;padding:0 14px;gap:10px;
+  box-shadow:0 20px 60px rgba(0,73,83,0.25);z-index:100;
+  transition:transform 0.8s var(--ease),opacity 0.8s ease;
+  opacity:0;
+}
+#nav.visible{opacity:1}
+#nav.hide{transform:translateX(-50%) translateY(-140%);opacity:0}
+.nav-logo{
+  width:46px;height:46px;background:var(--brand-sec);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Playfair Display',serif;font-size:22px;font-weight:700;
+  color:var(--brand);cursor:pointer;flex-shrink:0;
+  transition:transform 1s var(--ease);
+}
+.nav-logo:hover{transform:rotate(360deg)}
+.nav-div{width:1px;height:28px;background:rgba(255,255,255,0.1);flex-shrink:0}
+.nav-title{font-family:'Playfair Display',serif;color:var(--ton);font-size:17px;font-weight:700;letter-spacing:0.18em;flex-shrink:0}
+.nav-pills{display:flex;gap:6px}
+.nav-pill{
+  display:flex;align-items:center;gap:5px;padding:5px 11px;
+  border-radius:var(--r-btn);border:1px solid rgba(255,255,255,0.14);
+  font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:600;
+  color:rgba(249,247,242,0.65);transition:all 0.3s var(--ease);flex-shrink:0;
+}
+.nav-pill.alert{background:rgba(180,20,20,0.3);border-color:rgba(192,57,43,0.5);color:#ffaaaa}
+.nav-pill-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.nav-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.nav-doctor{
+  display:flex;align-items:center;gap:8px;padding:6px 12px;
+  border-radius:var(--r-btn);background:rgba(255,255,255,0.07);
+}
+.nav-doctor-name{font-family:'Inter Tight',sans-serif;font-size:12px;color:rgba(249,247,242,0.85);font-weight:500}
+.nav-role{font-size:9px;font-weight:700;padding:2px 8px;border-radius:var(--r-btn);background:rgba(249,247,242,0.14);color:var(--ton);letter-spacing:0.1em;text-transform:uppercase}
+.nav-icon-btn{
+  width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.07);
+  border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:rgba(249,247,242,0.65);position:relative;transition:background 0.2s;flex-shrink:0;
+}
+.nav-icon-btn:hover{background:rgba(255,255,255,0.15)}
+.bell-badge{
+  position:absolute;top:3px;right:3px;width:15px;height:15px;border-radius:50%;
+  background:var(--danger);font-size:8px;font-weight:700;color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid rgba(0,73,83,0.96);
+}
+.ws-indicator{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.ws-indicator.live{background:var(--success);animation:pulseLive 2s infinite}
+.ws-indicator.dead{background:var(--danger)}
+@keyframes pulseLive{0%{box-shadow:0 0 0 0 rgba(30,132,73,0.6)}70%{box-shadow:0 0 0 8px rgba(30,132,73,0)}100%{box-shadow:0 0 0 0 rgba(30,132,73,0)}}
+
+/* ── LAYOUT ── */
+#app{
+  display:grid;grid-template-columns:280px 1fr 320px;
+  height:100vh;padding-top:96px;
+  opacity:0;transition:opacity 0.6s var(--ease);
+}
+#app.visible{opacity:1}
+
+/* ── LEFT PANEL ── */
+#left-panel{
+  background:var(--brand-sec);border-right:1px solid rgba(0,73,83,0.08);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.panel-hdr{padding:16px 16px 10px;border-bottom:1px solid rgba(0,73,83,0.06)}
+.panel-label{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.32em;color:rgba(62,39,35,0.38);margin-bottom:10px}
+.search-wrap{position:relative}
+.search-input{
+  width:100%;background:var(--surface);
+  border:1px solid rgba(0,73,83,0.1);border-radius:var(--r-btn);
+  padding:9px 12px 9px 34px;font-family:'Albert Sans',sans-serif;
+  font-size:13px;color:var(--tp);outline:none;transition:border-color 0.2s;
+}
+.search-input:focus{border-color:rgba(0,73,83,0.35)}
+.search-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:rgba(0,73,83,0.38);font-size:15px;pointer-events:none}
+.pt-list{overflow-y:auto;flex:1}
+.pt-list::-webkit-scrollbar{width:3px}
+.pt-list::-webkit-scrollbar-thumb{background:rgba(0,73,83,0.12);border-radius:4px}
+
+/* ── PATIENT CARD ── */
+.pt-card{
+  padding:12px 16px;border-bottom:1px solid rgba(0,73,83,0.05);
+  cursor:pointer;transition:background 0.3s var(--ease);
+  border-left:3px solid transparent;
+  animation:fadeInLeft 0.5s var(--ease) both;
+}
+.pt-card:hover{background:var(--brand-acc)}
+.pt-card.active{background:var(--surface);box-shadow:2px 0 12px rgba(0,73,83,0.08);border-left-color:var(--brand)}
+@keyframes fadeInLeft{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+.pt-row{display:flex;align-items:center;gap:10px}
+.pt-ava-wrap{position:relative;flex-shrink:0;width:42px;height:42px}
+.pt-ava{
+  width:42px;height:42px;border-radius:50%;
+  background:rgba(0,73,83,0.08);display:flex;align-items:center;justify-content:center;
+  font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--brand);
+}
+.pt-ring{position:absolute;inset:-3px;width:48px;height:48px;pointer-events:none}
+.pt-ring.pulsing circle.pulse{animation:ringPulse 1.1s ease-in-out infinite}
+@keyframes ringPulse{0%{opacity:1;transform:scale(1)}50%{opacity:0;transform:scale(1.15)}100%{opacity:1;transform:scale(1)}}
+.pt-info{flex:1;min-width:0}
+.pt-name{font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:var(--tp);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-diag{font-family:'Albert Sans',sans-serif;font-size:11px;color:rgba(93,64,55,0.6);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-foot{display:flex;justify-content:space-between;align-items:center;margin-top:5px}
+.pt-surv{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;padding:2px 8px;border-radius:var(--r-btn);background:rgba(0,73,83,0.08);color:var(--brand)}
+.pt-time{font-family:'Albert Sans',sans-serif;font-size:10px;color:rgba(93,64,55,0.38)}
+
+/* ── CENTRE PANEL ── */
+#centre-panel{overflow-y:auto;padding:20px;background:var(--bg)}
+#centre-panel::-webkit-scrollbar{width:4px}
+#centre-panel::-webkit-scrollbar-thumb{background:rgba(0,73,83,0.12);border-radius:4px}
+.empty-ctr{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;opacity:0.35}
+.empty-ctr i{font-size:48px;color:var(--brand)}
+.empty-ctr p{font-family:'Playfair Display',serif;font-size:18px;font-style:italic;color:var(--tp)}
+
+/* ── PATIENT HEADER CARD ── */
+.pt-hdr-card{
+  background:var(--surface);border-radius:var(--r-card);
+  box-shadow:var(--sh-card);border:1px solid rgba(0,73,83,0.05);
+  padding:20px;margin-bottom:16px;display:flex;align-items:flex-start;gap:16px;
+  animation:fadeUp 0.5s var(--ease) both;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.hdr-ava{
+  width:58px;height:58px;border-radius:50%;background:var(--brand);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--ton);flex-shrink:0;
+}
+.hdr-info{flex:1}
+.hdr-name{font-family:'Playfair Display',serif;font-size:21px;font-weight:700;color:var(--tp)}
+.hdr-sub{font-family:'Albert Sans',sans-serif;font-size:12px;color:rgba(93,64,55,0.55);margin-top:3px}
+.hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex-shrink:0}
+.surv-label{font-family:'Inter Tight',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.22em;color:rgba(93,64,55,0.38);text-align:right}
+.surv-val{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--brand);text-align:right}
+.graph-btn{
+  background:var(--brand);color:var(--ton);border:none;border-radius:var(--r-btn);
+  padding:9px 18px;font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.15em;cursor:pointer;
+  box-shadow:var(--sh-cta);transition:transform 0.3s var(--ease);
+}
+.graph-btn:hover{transform:scale(1.05)}
+
+/* ── VITALS GRID ── */
+.vitals-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.vital-card{
+  background:var(--surface);border-radius:var(--r-card);
+  box-shadow:var(--sh-card);border:1.5px solid rgba(0,73,83,0.06);
+  padding:14px;transition:border-color 0.5s ease;
+  animation:fadeUp 0.5s var(--ease) both;
+}
+.vital-card.state-warn{border-color:var(--warning)}
+.vital-card.state-danger{border-color:var(--danger)}
+.vital-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.vital-label{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.26em;color:rgba(62,39,35,0.38)}
+.vital-now{text-align:right}
+.vital-val{font-family:'Playfair Display',serif;font-size:27px;font-weight:700;color:var(--tp);line-height:1}
+.vital-unit{font-family:'Albert Sans',sans-serif;font-size:11px;color:rgba(93,64,55,0.38)}
+.vital-svg{width:100%;display:block}
+
+/* ── RIGHT PANEL ── */
+#right-panel{
+  background:var(--brand-sec);border-left:1px solid rgba(0,73,83,0.08);
+  overflow-y:auto;padding:20px;
+}
+#right-panel::-webkit-scrollbar{width:3px}
+#right-panel::-webkit-scrollbar-thumb{background:rgba(0,73,83,0.12);border-radius:4px}
+.rp-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+.rp-title{font-family:'Playfair Display',serif;font-size:16px;font-style:italic;color:var(--tp)}
+.rp-ts{font-family:'Albert Sans',sans-serif;font-size:10px;color:rgba(93,64,55,0.38);margin-top:3px}
+.refresh-btn{
+  width:32px;height:32px;border-radius:50%;background:rgba(0,73,83,0.07);
+  border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:var(--brand);flex-shrink:0;transition:background 0.2s,transform 0.5s var(--ease);
+}
+.refresh-btn:hover{background:rgba(0,73,83,0.14);transform:rotate(180deg)}
+
+/* ── REC CARD ── */
+.rec-card{
+  background:var(--surface);border-radius:var(--r-card);
+  box-shadow:var(--sh-card);border:1px solid rgba(0,73,83,0.05);
+  padding:16px;margin-bottom:12px;cursor:pointer;
+  transition:box-shadow 0.4s var(--ease),transform 0.4s var(--ease);
+  animation:fadeInRight 0.5s var(--ease) both;
+}
+.rec-card:hover{box-shadow:var(--sh-active);transform:translateX(-4px)}
+@keyframes fadeInRight{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
+.rec-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.rec-name{font-family:'Inter Tight',sans-serif;font-size:13px;font-weight:600;color:var(--tp)}
+.rec-rank{font-size:9px;font-weight:700;padding:2px 8px;border-radius:var(--r-btn);background:var(--brand);color:var(--ton);text-transform:uppercase;letter-spacing:0.06em;flex-shrink:0}
+.rec-effect{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--brand)}
+.rec-eff-lbl{font-family:'Albert Sans',sans-serif;font-size:10px;color:rgba(93,64,55,0.45);margin-bottom:12px}
+.ci-row{margin-bottom:10px}
+.ci-labels{display:flex;justify-content:space-between;font-size:10px;color:rgba(93,64,55,0.38);font-family:'Inter Tight',sans-serif;margin-bottom:4px}
+.ci-track{height:5px;background:rgba(0,73,83,0.1);border-radius:var(--r-btn);position:relative}
+.ci-fill{position:absolute;height:100%;background:var(--brand);border-radius:var(--r-btn)}
+.zk-row{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:var(--r-btn);font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px}
+.zk-row.ok{background:rgba(30,132,73,0.1);color:var(--success)}
+.zk-row.pend{background:rgba(0,0,0,0.05);color:rgba(93,64,55,0.38)}
+.path-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+.path-pill{font-family:'Albert Sans',sans-serif;font-size:10px;padding:3px 9px;border-radius:var(--r-btn);background:var(--brand-acc);color:var(--tp)}
+.path-arr{font-size:11px;color:rgba(93,64,55,0.3)}
+.cf-btn{
+  width:100%;background:var(--brand);color:var(--ton);border:none;
+  border-radius:var(--r-btn);padding:10px;font-family:'Inter Tight',sans-serif;
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;
+  cursor:pointer;box-shadow:var(--sh-cta);transition:transform 0.3s var(--ease);
+}
+.cf-btn:hover{transform:scale(1.03)}
+.status-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid rgba(0,73,83,0.07);font-family:'Albert Sans',sans-serif;font-size:12px}
+.sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sdot.ok{background:var(--success)}
+.sdot.warn{background:var(--warning)}
+.sdot.danger{background:var(--danger)}
+
+/* ── ALERT BANNER ── */
+#alert-banner{position:fixed;top:92px;left:50%;transform:translateX(-50%);background:var(--brand);color:var(--ton);border-radius:var(--r-btn);padding:12px 20px;box-shadow:var(--sh-cta);z-index:9999;display:none;align-items:center;gap:12px;font-family:"Inter Tight",sans-serif;font-size:12px;font-weight:500;white-space:nowrap;}
+#alert-banner.show{display:flex;}
+.abtn{
+  background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);
+  color:var(--ton);border-radius:var(--r-btn);padding:5px 13px;
+  font-size:10px;font-weight:700;text-transform:uppercase;cursor:pointer;
+  letter-spacing:0.1em;transition:background 0.2s;
+}
+.abtn:hover{background:rgba(255,255,255,0.28)}
+.adism{background:none;border:none;color:rgba(249,247,242,0.5);cursor:pointer;font-size:18px;padding:2px 4px}
+
+
+/* ── BELL PANEL ── */
+#bell-panel{
+  position:fixed;top:90px;right:calc((100% - min(1500px, calc(100% - 32px)))/2 + 14px);
+  width:320px;background:var(--surface);border-radius:20px;
+  box-shadow:0 20px 60px rgba(62,39,35,0.15);border:1px solid rgba(0,73,83,0.1);
+  z-index:9998;overflow:hidden;
+  transform:translateY(-10px) scale(0.96);opacity:0;pointer-events:none;
+  transition:transform 0.4s var(--ease),opacity 0.4s var(--ease);
+}
+#bell-panel.open{transform:translateY(0) scale(1);opacity:1;pointer-events:all}
+.bell-panel-hdr{padding:16px 18px;border-bottom:1px solid rgba(0,73,83,0.06);display:flex;justify-content:space-between;align-items:center}
+.bell-panel-title{font-family:'Playfair Display',serif;font-size:15px;font-style:italic;color:var(--tp)}
+.bell-panel-clear{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--brand);background:none;border:none;cursor:pointer;padding:4px 10px;border-radius:var(--r-btn);transition:background 0.2s}
+.bell-panel-clear:hover{background:rgba(0,73,83,0.07)}
+.bell-notif{padding:12px 18px;border-bottom:1px solid rgba(0,73,83,0.05);display:flex;gap:10px;align-items:flex-start;cursor:pointer;transition:background 0.2s}
+.bell-notif:hover{background:var(--brand-acc)}
+.bell-notif:last-child{border-bottom:none}
+.bell-notif-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.bell-notif-icon.danger{background:rgba(192,57,43,0.1);color:var(--danger)}
+.bell-notif-icon.warn{background:rgba(214,137,16,0.1);color:var(--warning)}
+.bell-notif-icon.info{background:rgba(0,73,83,0.08);color:var(--brand)}
+.bell-notif-body{flex:1}
+.bell-notif-title{font-family:'Inter Tight',sans-serif;font-size:12px;font-weight:600;color:var(--tp)}
+.bell-notif-sub{font-family:'Albert Sans',sans-serif;font-size:11px;color:rgba(93,64,55,0.55);margin-top:2px}
+.bell-notif-time{font-family:'Albert Sans',sans-serif;font-size:10px;color:rgba(93,64,55,0.35);margin-top:3px}
+
+/* FEDERATED SECTION */
+.fed-section{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--sh-card);border:1px solid rgba(0,73,83,0.05);padding:16px;margin-top:0;animation:fadeUp 0.5s var(--ease) 0.4s both}
+.fed-title{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.26em;color:rgba(62,39,35,0.38);margin-bottom:12px}
+.node-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(0,73,83,0.05)}
+.node-row:last-child{border-bottom:none}
+.node-name{font-family:'Inter Tight',sans-serif;font-size:12px;font-weight:600;color:var(--tp)}
+.node-score-wrap{display:flex;align-items:center;gap:8px}
+.node-bar-track{width:80px;height:5px;background:rgba(0,73,83,0.08);border-radius:var(--r-btn);overflow:hidden}
+.node-bar-fill{height:100%;border-radius:var(--r-btn)}
+.node-score-val{font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:600;color:var(--brand);min-width:28px;text-align:right}
+.node-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:var(--r-btn);text-transform:uppercase;letter-spacing:0.06em}
+.node-badge.active{background:rgba(30,132,73,0.1);color:var(--success)}
+.node-badge.excl{background:rgba(192,57,43,0.1);color:var(--danger)}
+</style>
+</head>
+<body>
+
+
+<!-- BELL PANEL -->
+<div id="bell-panel">
+  <div class="bell-panel-hdr">
+    <div class="bell-panel-title">Notifications</div>
+    <button class="bell-panel-clear" onclick="clearBell()">Mark all read</button>
+  </div>
+  <div class="bell-notif">
+    <div class="bell-notif-icon danger"><i class="ph-bold ph-warning"></i></div>
+    <div class="bell-notif-body">
+      <div class="bell-notif-title">Amit Singh — Creatinine critical</div>
+      <div class="bell-notif-sub">Predictive: 4.41 mg/dL in 2h (threshold 3.5)</div>
+      <div class="bell-notif-time">2 minutes ago</div>
+    </div>
+  </div>
+  <div class="bell-notif">
+    <div class="bell-notif-icon warn"><i class="ph-bold ph-trend-up"></i></div>
+    <div class="bell-notif-body">
+      <div class="bell-notif-title">Ravi Kumar — BP elevated</div>
+      <div class="bell-notif-sub">Systolic 158 mmHg, above normal range</div>
+      <div class="bell-notif-time">8 minutes ago</div>
+    </div>
+  </div>
+  <div class="bell-notif">
+    <div class="bell-notif-icon info"><i class="ph-bold ph-check-circle"></i></div>
+    <div class="bell-notif-body">
+      <div class="bell-notif-title">Federated round completed</div>
+      <div class="bell-notif-sub">3 nodes updated, Hospital C excluded (Byzantine)</div>
+      <div class="bell-notif-time">42 minutes ago</div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">A</div>
+    <div class="login-title">Welcome back</div>
+    <div class="login-sub">Axiom Clinical Intelligence Platform</div>
+    <input class="login-input" type="email" placeholder="Email address" id="li-email" value="dr.sharma@axiom.health">
+    <input class="login-input" type="password" placeholder="Password" id="li-pass" value="••••••••">
+    <button class="login-btn" id="login-btn">Sign In to Command Centre</button>
+  </div>
+</div>
+
+<!-- ALERT BANNER -->
+<div id="alert-banner">
+  <i class="ph-bold ph-warning" style="font-size:18px;flex-shrink:0"></i>
+  <span id="ab-text"><strong>Amit Singh</strong> — Creatinine rising (4.41 mg/dL predicted in 2h) &nbsp;<span style="background:rgba(255,255,255,0.15);padding:2px 8px;border-radius:40px;font-size:10px">PREDICTIVE</span></span>
+  <button class="abtn" id="ab-view" onclick="document.getElementById('alert-banner').style.display='none';selectPt('3319a93d');">View Patient</button>
+  <button class="adism" onclick="document.getElementById('alert-banner').style.display='none';" style="background:none;border:none;color:rgba(249,247,242,0.6);cursor:pointer;font-size:20px;padding:0 4px;line-height:1;flex-shrink:0;">✕</button>
+</div>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-logo" id="nav-logo">A</div>
+  <div class="nav-div"></div>
+  <span class="nav-title font-primary">AXIOM</span>
+  <div class="nav-pills" style="margin-left:16px">
+    <div class="nav-pill"><div class="nav-pill-dot" style="background:#1E8449"></div><span id="np-total">51 Patients</span></div>
+    <div class="nav-pill alert" id="np-alerts"><div class="nav-pill-dot"></div><span id="np-alert-txt">2 Alerts</span></div>
+    <div class="nav-pill alert" id="np-crit"><div class="nav-pill-dot"></div><span>1 Critical</span></div>
+  </div>
+  <div class="nav-right">
+    <div class="nav-doctor">
+      <span class="nav-doctor-name">Dr. Priya Sharma</span>
+      <span class="nav-role">Physician</span>
+    </div>
+    <button class="nav-icon-btn" title="Alerts" id="bell-btn" onclick="toggleBell()">
+      <i class="ph ph-bell" style="font-size:18px"></i>
+      <div class="bell-badge" id="bell-badge">2</div>
+    </button>
+    <div class="ws-indicator live" id="ws-dot" title="WebSocket live"></div>
+  </div>
+</nav>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- LEFT PANEL -->
+  <div id="left-panel">
+    <div class="panel-hdr">
+      <div class="panel-label">Patients</div>
+      <div class="search-wrap">
+        <i class="ph ph-magnifying-glass search-ico"></i>
+        <input type="text" class="search-input" id="search" placeholder="Search patients…" oninput="filterPts()">
+      </div>
+    </div>
+    <div class="pt-list" id="pt-list"></div>
+  </div>
+
+  <!-- CENTRE PANEL -->
+  <div id="centre-panel">
+    <div id="centre-inner">
+      <div class="empty-ctr">
+        <i class="ph ph-user-circle"></i>
+        <p>Select a patient to begin</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
+    <div class="rp-hdr" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
+      <div>
+        <div class="rp-title">Causal recommendations</div>
+        <div class="rp-ts" id="rp-ts">Updated just now</div>
+      </div>
+      <button class="refresh-btn" onclick="doRefresh()" title="Refresh"><i class="ph ph-arrows-clockwise" style="font-size:16px"></i></button>
+    </div>
+    <div id="rp-content">
+      <div class="empty-ctr" style="padding-top:30px">
+        <i class="ph ph-brain"></i>
+        <p style="font-size:14px">Select a patient</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──
+const PATIENTS = [
+  {id:'3319a93d',name:'Amit Singh',age:58,sex:'M',diag:'Chronic Kidney Disease',snomed:'709044004',risk:'high',surv:82,lastVital:'1m ago',deter:true,score:0.992,admDays:14},
+  {id:'a4b2c1d0',name:'Priya Patel',age:45,sex:'F',diag:'Type 2 Diabetes Mellitus',snomed:'44054006',risk:'watch',surv:91,lastVital:'3m ago',deter:false,score:0.61,admDays:7},
+  {id:'b5c3d2e1',name:'Ravi Kumar',age:67,sex:'M',diag:'Hypertensive Heart Disease',snomed:'64715009',risk:'high',surv:74,lastVital:'2m ago',deter:false,score:0.88,admDays:21},
+  {id:'c6d4e3f2',name:'Sunita Verma',age:52,sex:'F',diag:'COPD Stage III',snomed:'13645005',risk:'watch',surv:88,lastVital:'5m ago',deter:false,score:0.55,admDays:5},
+  {id:'d7e5f4g3',name:'Vikram Nair',age:71,sex:'M',diag:'Atrial Fibrillation',snomed:'49436004',risk:'stable',surv:94,lastVital:'4m ago',deter:false,score:0.30,admDays:3},
+  {id:'e8f6g5h4',name:'Meena Iyer',age:39,sex:'F',diag:'Systemic Lupus',snomed:'55464009',risk:'watch',surv:97,lastVital:'6m ago',deter:false,score:0.42,admDays:9},
+  {id:'f9g7h6i5',name:'Arun Mishra',age:63,sex:'M',diag:'Heart Failure NYHA III',snomed:'84114007',risk:'high',surv:71,lastVital:'2m ago',deter:false,score:0.91,admDays:18},
+  {id:'g0h8i7j6',name:'Kavitha Rao',age:48,sex:'F',diag:'Diabetic Nephropathy',snomed:'127013003',risk:'watch',surv:89,lastVital:'7m ago',deter:false,score:0.58,admDays:11},
+].sort((a,b)=>b.score-a.score);
+
+const RECS = {
+  '3319a93d':[
+    {name:'Increase Lisinopril',eff:'-0.024',lbl:'SBP→Creatinine effect',ci:['−0.031','−0.017'],cil:18,ciw:52,zk:true,path:['Lisinopril','Systolic BP','Creatinine'],rank:'#1 Strongest'},
+    {name:'Add Furosemide',eff:'+0.037',lbl:'Creatinine (NLP derived)',ci:['0.020','0.055'],cil:30,ciw:44,zk:true,path:['Furosemide','Fluid balance','Creatinine'],rank:'#2 NLP derived'},
+    {name:'Lifestyle Counselling',eff:'-0.013',lbl:'Glucose→Heart Rate',ci:['−0.025','−0.001'],cil:10,ciw:66,zk:false,path:['Diet','Glucose','Heart rate'],rank:'#3 Moderate'},
+  ],
+  default:[
+    {name:'Metformin 500mg',eff:'-1.2%',lbl:'HbA1c reduction',ci:['−1.8%','−0.6%'],cil:24,ciw:46,zk:true,path:['Metformin','Insulin sensitivity','HbA1c'],rank:'#1 Strongest'},
+    {name:'ACE Inhibitor',eff:'-0.018',lbl:'BP→Cardiac effect',ci:['−0.028','−0.008'],cil:20,ciw:55,zk:true,path:['ACE-I','Blood pressure','Cardiac load'],rank:'#2 Evidence'},
+    {name:'Statin Therapy',eff:'-0.009',lbl:'LDL→Vascular risk',ci:['−0.019','0.001'],cil:14,ciw:70,zk:false,path:['Statin','LDL','CVD risk'],rank:'#3 Preventive'},
+  ]
+};
+
+const VRANGE = {
+  hr:  {name:'Heart Rate',    unit:'bpm', normal:[60,100],  crit:[40,130]},
+  sbp: {name:'Blood Pressure',unit:'mmHg',normal:[90,140],  crit:[70,185]},
+  spo2:{name:'SpO₂',          unit:'%',   normal:[95,100],  crit:[90,100]},
+  temp:{name:'Temperature',   unit:'°C',  normal:[36.1,37.2],crit:[35,39]},
+};
+
+const BASE_VALS = {
+  '3319a93d':{hr:77,sbp:147,spo2:96,temp:36.8},
+  default:{hr:82,sbp:125,spo2:97,temp:36.9},
+};
+
+// ── STATE ──
+let selId=null;
+let vData={};
+let vTimer=null;
+let rpSec=0;
+let rpTimer=null;
+let lastScrollY=0;
+
+function initV(pid){
+  const b=BASE_VALS[pid]||BASE_VALS.default;
+  vData[pid]={};
+  Object.keys(VRANGE).forEach(k=>{
+    vData[pid][k]=Array.from({length:60},()=>b[k]+(Math.random()-0.5)*4);
+  });
+}
+
+function nextVal(pid,key){
+  const last=vData[pid][key].slice(-1)[0];
+  const delta=(Math.random()-0.5)*2.5;
+  const b=BASE_VALS[pid]||BASE_VALS.default;
+  const v=last+delta;
+  const lo=b[key]*0.88,hi=b[key]*1.12;
+  return parseFloat(Math.min(hi,Math.max(lo,v)).toFixed(1));
+}
+
+// ── BOOT ──
+document.getElementById('login-btn').addEventListener('click',doLogin);
+document.getElementById('ab-view').addEventListener('click',()=>{
+  document.getElementById('alert-banner').classList.remove('show');
+  selectPt('3319a93d');
+});
+
+function doLogin(){
+  document.getElementById('login-screen').classList.add('exit');
+  setTimeout(()=>{
+    buildPtList();
+    document.getElementById('nav').classList.add('visible');
+    document.getElementById('app').classList.add('visible');
+    startWsSim();
+    startRpTimer();
+    setTimeout(()=>{var ab=document.getElementById('alert-banner');ab.style.display='flex';},4000);
+  },500);
+}
+
+// Auto-login for demo
+setTimeout(doLogin, 400);
+
+// ── PATIENT LIST ──
+function buildPtList(q=''){
+  const list=document.getElementById('pt-list');
+  list.innerHTML='';
+  const pts=PATIENTS.filter(p=>p.name.toLowerCase().includes(q.toLowerCase()));
+  pts.forEach((p,i)=>{
+    const rc=p.risk==='high'?'#C0392B':p.risk==='watch'?'#D68910':'#1E8449';
+    const initials=p.name.split(' ').map(w=>w[0]).join('');
+    const d=document.createElement('div');
+    d.className='pt-card'+(p.id===selId?' active':'');
+    d.style.animationDelay=(i*0.04)+'s';
+    const pulseCircle=p.deter?`<circle class="pulse" cx="24" cy="24" r="20" fill="none" stroke="${rc}" stroke-width="2" opacity="0.4" stroke-dasharray="5 5"/>`:'';
+    d.innerHTML=`<div class="pt-row">
+      <div class="pt-ava-wrap">
+        <div class="pt-ava">${initials}</div>
+        <svg class="pt-ring${p.deter?' pulsing':''}" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r="20" fill="none" stroke="${rc}" stroke-width="2.5"/>
+          ${pulseCircle}
+        </svg>
+      </div>
+      <div class="pt-info">
+        <div class="pt-name">${p.name}, ${p.age}</div>
+        <div class="pt-diag">${p.diag}</div>
+        <div class="pt-foot">
+          <span class="pt-surv">${p.surv}% 30d</span>
+          <span class="pt-time">${p.lastVital}</span>
+        </div>
+      </div>
+    </div>`;
+    d.addEventListener('click',()=>selectPt(p.id));
+    list.appendChild(d);
+  });
+}
+function filterPts(){buildPtList(document.getElementById('search').value)}
+
+// ── SELECT PATIENT ──
+function selectPt(id){
+  selId=id;
+  buildPtList(document.getElementById('search').value);
+  if(!vData[id])initV(id);
+  renderCentre(id);
+  renderRP(id);
+  clearInterval(vTimer);
+  vTimer=setInterval(()=>tickVitals(id),3000);
+}
+
+// ── CENTRE PANEL ──
+function renderCentre(id){
+  const p=PATIENTS.find(x=>x.id===id);
+  if(!p)return;
+  const initials=p.name.split(' ').map(w=>w[0]).join('');
+  const rc=p.risk==='high'?'var(--danger)':p.risk==='watch'?'var(--warning)':'var(--success)';
+  document.getElementById('centre-inner').innerHTML=`
+    <div class="pt-hdr-card">
+      <div class="hdr-ava">${initials}</div>
+      <div class="hdr-info">
+        <div class="hdr-name">${p.name}</div>
+        <div class="hdr-sub">${p.diag} <span style="opacity:0.5">(${p.snomed})</span></div>
+        <div class="hdr-sub" style="margin-top:3px">ID: ${p.id.slice(0,8).toUpperCase()} &nbsp;·&nbsp; ${p.age}yr ${p.sex} &nbsp;·&nbsp; Admitted ${p.admDays} days ago &nbsp;·&nbsp; Risk: <strong style="color:${rc}">${p.risk.toUpperCase()}</strong></div>
+      </div>
+      <div class="hdr-right">
+        <div>
+          <div class="surv-label">30-day survival</div>
+          <svg id="sparkline" width="120" height="38" style="display:block;margin:3px 0"></svg>
+          <div class="surv-val">${p.surv}%</div>
+        </div>
+        <button class="graph-btn" onclick="alert('Causal Graph — Sprint 9')">View Causal Graph →</button>
+      </div>
+    </div>
+    <div class="vitals-grid" id="vitals-grid"></div>
+    <div class="fed-section" id="fed-section"></div>
+  `;
+  drawSparkline(p.surv);
+  buildVitalCards(id);
+  buildFed();
+}
+
+function drawSparkline(surv){
+  const svg=document.getElementById('sparkline');
+  if(!svg)return;
+  const data=Array.from({length:30},(_,i)=>(surv/100)*Math.exp(-0.003*i)+(Math.random()-0.5)*0.015);
+  const W=120,H=38;
+  const xs=d3.scaleLinear().domain([0,29]).range([0,W]);
+  const ys=d3.scaleLinear().domain([0.4,1]).range([H-2,2]);
+  const svgD3=d3.select(svg);
+  svgD3.selectAll('*').remove();
+  const defs=svgD3.append('defs');
+  const g=defs.append('linearGradient').attr('id','sg').attr('x1',0).attr('x2',0).attr('y1',0).attr('y2',1);
+  g.append('stop').attr('offset','0%').attr('stop-color','#004953').attr('stop-opacity',0.25);
+  g.append('stop').attr('offset','100%').attr('stop-color','#004953').attr('stop-opacity',0);
+  const area=d3.area().x((_,i)=>xs(i)).y0(H).y1(d=>ys(d)).curve(d3.curveCatmullRom);
+  const line=d3.line().x((_,i)=>xs(i)).y(d=>ys(d)).curve(d3.curveCatmullRom);
+  svgD3.append('path').datum(data).attr('d',area).attr('fill','url(#sg)');
+  svgD3.append('path').datum(data).attr('d',line).attr('fill','none').attr('stroke','#004953').attr('stroke-width',1.8);
+}
+
+function buildVitalCards(id){
+  const grid=document.getElementById('vitals-grid');
+  if(!grid)return;
+  grid.innerHTML='';
+  Object.entries(VRANGE).forEach(([key,cfg],idx)=>{
+    const vals=vData[id][key];
+    const cur=vals[vals.length-1];
+    const warn=cur<cfg.normal[0]||cur>cfg.normal[1];
+    const dang=cur<cfg.crit[0]||cur>cfg.crit[1];
+    const card=document.createElement('div');
+    card.className='vital-card'+(dang?' state-danger':warn?' state-warn':'');
+    card.id=`vc-${id}-${key}`;
+    card.style.animationDelay=(idx*0.08)+'s';
+    card.innerHTML=`
+      <div class="vital-top">
+        <div class="vital-label">${cfg.name}</div>
+        <div class="vital-now">
+          <div class="vital-val" id="vv-${id}-${key}">${cur.toFixed(1)}</div>
+          <div class="vital-unit">${cfg.unit}</div>
+        </div>
+      </div>
+      <svg class="vital-svg" id="vs-${id}-${key}" height="78" style="overflow:visible"></svg>
+    `;
+    grid.appendChild(card);
+    drawVital(id,key,cfg,vals);
+  });
+}
+
+function drawVital(id,key,cfg,vals){
+  const el=document.getElementById(`vs-${id}-${key}`);
+  if(!el)return;
+  const W=el.parentElement?el.parentElement.clientWidth-28:200;
+  const H=78;
+  el.setAttribute('width',W);
+  const cur=vals[vals.length-1];
+  const warn=cur<cfg.normal[0]||cur>cfg.normal[1];
+  const dang=cur<cfg.crit[0]||cur>cfg.crit[1];
+  const lc=dang?'#C0392B':warn?'#D68910':'#004953';
+  const d3el=d3.select(el);
+  d3el.selectAll('*').remove();
+  const xs=d3.scaleLinear().domain([0,59]).range([0,W]);
+  const pad=0.05*(Math.max(...vals)-Math.min(...vals))||0.5;
+  const ys=d3.scaleLinear().domain([Math.min(...vals)-pad,Math.max(...vals)+pad]).range([H-2,2]);
+  const defs=d3el.append('defs');
+  const gr=defs.append('linearGradient').attr('id',`vg-${id}-${key}`).attr('x1',0).attr('x2',0).attr('y1',0).attr('y2',1);
+  gr.append('stop').attr('offset','0%').attr('stop-color',lc).attr('stop-opacity',0.18);
+  gr.append('stop').attr('offset','100%').attr('stop-color',lc).attr('stop-opacity',0);
+  // normal band
+  const ny1=Math.max(2,ys(cfg.normal[1])),ny2=Math.min(H-2,ys(cfg.normal[0]));
+  if(ny2>ny1)d3el.append('rect').attr('x',0).attr('y',ny1).attr('width',W).attr('height',ny2-ny1).attr('fill','rgba(0,73,83,0.05)');
+  const area=d3.area().x((_,i)=>xs(i)).y0(H).y1(d=>ys(d)).curve(d3.curveCatmullRom);
+  const line=d3.line().x((_,i)=>xs(i)).y(d=>ys(d)).curve(d3.curveCatmullRom);
+  d3el.append('path').datum(vals).attr('d',area).attr('fill',`url(#vg-${id}-${key})`);
+  d3el.append('path').datum(vals).attr('d',line).attr('fill','none').attr('stroke',lc).attr('stroke-width',2);
+}
+
+function tickVitals(id){
+  if(id!==selId)return;
+  Object.entries(VRANGE).forEach(([key,cfg])=>{
+    const nv=nextVal(id,key);
+    vData[id][key].push(nv);
+    if(vData[id][key].length>60)vData[id][key].shift();
+    const el=document.getElementById(`vv-${id}-${key}`);
+    if(el)el.textContent=nv.toFixed(1);
+    const warn=nv<cfg.normal[0]||nv>cfg.normal[1];
+    const dang=nv<cfg.crit[0]||nv>cfg.crit[1];
+    const card=document.getElementById(`vc-${id}-${key}`);
+    if(card){card.className='vital-card'+(dang?' state-danger':warn?' state-warn':'');}
+    drawVital(id,key,cfg,vData[id][key]);
+  });
+}
+
+// ── RIGHT PANEL ──
+function renderRP(id){
+  const recs=RECS[id]||RECS.default;
+  const drift=id==='3319a93d';
+  const anom=id==='3319a93d';
+  document.getElementById('rp-content').innerHTML=
+    recs.map((r,i)=>`
+      <div class="rec-card" style="animation-delay:${i*0.09}s">
+        <div class="rec-top">
+          <div class="rec-name">${r.name}</div>
+          <div class="rec-rank">${r.rank}</div>
+        </div>
+        <div class="rec-effect">${r.eff}</div>
+        <div class="rec-eff-lbl">${r.lbl}</div>
+        <div class="ci-row">
+          <div class="ci-labels"><span>${r.ci[0]}</span><span>${r.ci[1]}</span></div>
+          <div class="ci-track"><div class="ci-fill" style="left:${r.cil}%;width:${r.ciw}%"></div></div>
+        </div>
+        <div class="zk-row ${r.zk?'ok':'pend'}">
+          <i class="ph${r.zk?'-bold':''} ph-shield-check" style="font-size:13px"></i>
+          ${r.zk?'Proof verified':'Proof pending'}
+        </div>
+        <div class="path-row">
+          ${r.path.map((n,j)=>`<span class="path-pill">${n}</span>${j<r.path.length-1?'<i class="ph ph-arrow-right path-arr"></i>':''}`).join('')}
+        </div>
+        <button class="cf-btn" onclick="alert('Counterfactual engine — Sprint 9')">Run Counterfactual</button>
+      </div>
+    `).join('')+`
+    <div class="status-row"><div class="sdot ${drift?'warn':'ok'}"></div><span style="color:${drift?'var(--warning)':'var(--success)'}">${drift?'Causal drift detected (sbp→creatinine +29.7%)':'No structural causal drift'}</span></div>
+    <div class="status-row"><div class="sdot ${anom?'danger':'ok'}"></div><span style="color:${anom?'var(--danger)':'var(--success)'}">${anom?'Creatinine rising: 4.41 mg/dL predicted in 2h':'No anomalies detected'}</span></div>
+  `;
+}
+
+function buildFed(){
+  const el=document.getElementById('fed-section');
+  if(!el)return;
+  const nodes=[
+    {name:'Hospital A (17 pts)',score:0.80,active:true},
+    {name:'Hospital B (17 pts)',score:0.80,active:true},
+    {name:'Hospital C (17 pts)',score:0.29,active:false},
+  ];
+  el.innerHTML=`<div class="fed-title">Federated Network Status</div>`+
+    nodes.map(n=>`
+      <div class="node-row">
+        <div class="node-name">${n.name}</div>
+        <div class="node-score-wrap">
+          <div class="node-bar-track"><div class="node-bar-fill" style="width:${n.score*100}%;background:${n.active?'var(--brand)':'var(--danger)'}"></div></div>
+          <div class="node-score-val">${(n.score*100).toFixed(0)}%</div>
+          <div class="node-badge ${n.active?'active':'excl'}">${n.active?'Active':'Excluded'}</div>
+        </div>
+      </div>`).join('');
+}
+
+function doRefresh(){
+  rpSec=0;
+  document.getElementById('rp-ts').textContent='Updated just now';
+  if(selId)renderRP(selId);
+}
+
+function startRpTimer(){
+  rpTimer=setInterval(()=>{
+    rpSec++;
+    const el=document.getElementById('rp-ts');
+    if(el)el.textContent=`Updated ${rpSec}s ago`;
+  },1000);
+}
+
+function startWsSim(){
+  setInterval(()=>{
+    const dot=document.getElementById('ws-dot');
+    if(!dot)return;
+    if(Math.random()<0.04){
+      dot.classList.remove('live');dot.classList.add('dead');
+      setTimeout(()=>{dot.classList.remove('dead');dot.classList.add('live');},1800);
+    }
+  },4000);
+}
+
+// Nav hide on scroll - watch centre panel
+document.getElementById('centre-panel').addEventListener('scroll',function(){
+  const nav=document.getElementById('nav');
+  const cur=this.scrollTop;
+  if(cur>60&&cur>lastScrollY){
+    nav.style.transform='translateX(-50%) translateY(-140%)';
+    nav.style.opacity='0';
+  } else {
+    nav.style.transform='translateX(-50%) translateY(0)';
+    nav.style.opacity='1';
+  }
+  lastScrollY=cur;
+},{passive:true});
+
+// ── BELL ──
+let bellOpen=false;
+function toggleBell(){
+  bellOpen=!bellOpen;
+  document.getElementById('bell-panel').classList.toggle('open',bellOpen);
+  if(bellOpen){
+    document.getElementById('bell-badge').style.display='none';
+  }
+}
+function clearBell(){
+  bellOpen=false;
+  document.getElementById('bell-panel').classList.remove('open');
+  document.getElementById('bell-badge').style.display='none';
+}
+// Close bell on outside click
+document.addEventListener('click',function(e){
+  const panel=document.getElementById('bell-panel');
+  const btn=document.getElementById('bell-btn');
+  if(panel&&btn&&!panel.contains(e.target)&&!btn.contains(e.target)){
+    bellOpen=false;
+    panel.classList.remove('open');
+  }
+});
+
+// ── ALERT BANNER FIX ──
+// Re-wire buttons after DOM ready
+function wireBanner(){}
+
+wireBanner();
+</script>
+</body>
+</html>
