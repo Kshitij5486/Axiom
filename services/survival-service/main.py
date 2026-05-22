@@ -85,6 +85,82 @@ def encode_all():
     }
 
 
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8082)
+
+@app.post("/survival/train/cox")
+def train_cox_model():
+    """
+    Train the Deep Cox model on all 50 patients.
+    Uses synthetic survival labels derived from
+    clinical risk score (creatinine, spo2, glucose, sbp).
+    """
+    global _cox_model
+    from patient_encoder import encode_all_patients
+    from cox_model import (
+        DeepCoxModel,
+        generate_synthetic_survival_labels,
+    )
+    import numpy as np
+
+    logger.info("Training Deep Cox model...")
+
+    # Encode all patients
+    encoded = encode_all_patients()
+    if len(encoded) < 10:
+        return {"error": "Insufficient patients"}
+
+    patient_ids = list(encoded.keys())
+    states = np.array(
+        [encoded[pid] for pid in patient_ids]
+    )
+
+    # Generate synthetic survival labels
+    times, events = generate_synthetic_survival_labels(
+        states
+    )
+
+    # Train Cox model
+    _cox_model = DeepCoxModel(input_dim=11)
+    result = _cox_model.train(
+        states=states,
+        times=times,
+        events=events,
+        epochs=100,
+    )
+
+    result["patients_trained"] = len(patient_ids)
+    return result
+
+
+@app.get("/survival/predict/{patient_id}")
+def predict_survival(patient_id: str):
+    """
+    Predict survival curve for a patient.
+    Returns S(t) at 30/60/90/180/365 days
+    with confidence bands.
+    """
+    if _cox_model is None or not _cox_model.is_trained:
+        return {
+            "error": "Cox model not trained. "
+                     "Call POST /survival/train/cox first."
+        }
+
+    from patient_encoder import encode_patient
+    import numpy as np
+
+    state = encode_patient(patient_id)
+    if state is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Could not encode patient {patient_id}",
+        )
+
+    result = _cox_model.predict_survival_curve(state)
+    result["patient_id"] = patient_id
+    return result
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8082)
