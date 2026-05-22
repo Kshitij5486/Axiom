@@ -1,0 +1,283 @@
+{
+  "meta": {
+    "description": "Axiom n8n Orchestration Workflows",
+    "version": "0.7.0",
+    "created": "2026-05-22"
+  },
+  "workflows": [
+    {
+      "id": "workflow-1",
+      "name": "New Vital Received",
+      "description": "Triggered by Kafka patient.vitals. Runs anomaly scan. If alert fires, calls Claude for triage. Routes to WebSocket broadcast.",
+      "trigger": "kafka:patient.vitals",
+      "steps": [
+        {
+          "id": "step-1",
+          "name": "Consume Kafka Message",
+          "type": "kafka_consumer",
+          "config": {
+            "topic": "patient.vitals",
+            "group_id": "n8n-vitals-group"
+          }
+        },
+        {
+          "id": "step-2",
+          "name": "Run Anomaly Scan",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8083/anomaly/scan/{{patient_id}}",
+            "timeout": 10000
+          }
+        },
+        {
+          "id": "step-3",
+          "name": "Check If Alerts Fired",
+          "type": "condition",
+          "config": {
+            "condition": "{{alerts_fired}} > 0"
+          }
+        },
+        {
+          "id": "step-4",
+          "name": "Claude Alert Triage",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8090/judge/alert-triage",
+            "body": {
+              "patient_id": "{{patient_id}}",
+              "alerts": "{{alerts}}"
+            }
+          },
+          "runs_if": "step-3 == true"
+        },
+        {
+          "id": "step-5",
+          "name": "Broadcast Alert via WebSocket",
+          "type": "websocket_publish",
+          "config": {
+            "url": "ws://localhost:4001/graphql",
+            "topic": "PATIENT_ALERT",
+            "payload": "{{alert + claude_triage}}"
+          },
+          "runs_if": "step-4.action == immediate_escalation"
+        },
+        {
+          "id": "step-6",
+          "name": "Log to Audit Trail",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8084/audit/recommendation",
+            "body": "{{alert_record}}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "workflow-2",
+      "name": "Causal Drift Detection",
+      "description": "Triggered when causal graph is rebuilt. Computes drift from previous version. Calls Claude to assess clinical significance.",
+      "trigger": "kafka:causal.updates",
+      "steps": [
+        {
+          "id": "step-1",
+          "name": "Receive Causal Update Event",
+          "type": "kafka_consumer",
+          "config": {
+            "topic": "causal.updates",
+            "group_id": "n8n-causal-group"
+          }
+        },
+        {
+          "id": "step-2",
+          "name": "Compute Drift Per Edge",
+          "type": "javascript",
+          "config": {
+            "code": "const drift = Math.abs((new_effect - old_effect) / old_effect) * 100; return drift > 20;"
+          }
+        },
+        {
+          "id": "step-3",
+          "name": "Claude Drift Judgment",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8090/judge/causal-drift",
+            "body": {
+              "patient_id": "{{patient_id}}",
+              "edge": "{{edge}}",
+              "old_effect": "{{old_effect}}",
+              "new_effect": "{{new_effect}}",
+              "drift_pct": "{{drift_pct}}"
+            }
+          },
+          "runs_if": "step-2 == true"
+        },
+        {
+          "id": "step-4",
+          "name": "Alert Doctor If Significant",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8083/anomaly/scan/{{patient_id}}"
+          },
+          "runs_if": "step-3.action == send_alert"
+        },
+        {
+          "id": "step-5",
+          "name": "Publish Drift Event to WebSocket",
+          "type": "websocket_publish",
+          "config": {
+            "url": "ws://localhost:4001/graphql",
+            "topic": "CAUSAL_DRIFT",
+            "payload": "{{drift_event}}"
+          },
+          "runs_if": "step-3.action == send_alert"
+        }
+      ]
+    },
+    {
+      "id": "workflow-3",
+      "name": "New Clinical Note NLP Pipeline",
+      "description": "Triggered by MongoDB change stream on clinical_notes. Runs NLP extraction, DAG update, ZK proof.",
+      "trigger": "mongodb:clinical_notes.insert",
+      "steps": [
+        {
+          "id": "step-1",
+          "name": "MongoDB Change Stream Trigger",
+          "type": "mongodb_watch",
+          "config": {
+            "collection": "clinical_notes",
+            "operation": "insert"
+          }
+        },
+        {
+          "id": "step-2",
+          "name": "Extract NLP Entities",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8083/nlp/extract/{{patient_id}}"
+          }
+        },
+        {
+          "id": "step-3",
+          "name": "Extract Causal Relations",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8083/nlp/relations/{{patient_id}}"
+          }
+        },
+        {
+          "id": "step-4",
+          "name": "Update Causal DAG",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8083/nlp/enrich/{{patient_id}}"
+          }
+        },
+        {
+          "id": "step-5",
+          "name": "Generate ZK Proof for DAG Update",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8084/zk/proof/recommendation",
+            "body": "{{dag_update_record}}"
+          }
+        },
+        {
+          "id": "step-6",
+          "name": "Log to Audit Trail",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8084/audit/recommendation",
+            "body": "{{nlp_audit_record}}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "workflow-4",
+      "name": "Federated Learning Round",
+      "description": "Scheduled every 6 hours. Runs federated round across hospital nodes. Byzantine detection. Global model update.",
+      "trigger": "schedule:0 */6 * * *",
+      "steps": [
+        {
+          "id": "step-1",
+          "name": "Cron Trigger Every 6 Hours",
+          "type": "schedule",
+          "config": {
+            "cron": "0 */6 * * *"
+          }
+        },
+        {
+          "id": "step-2",
+          "name": "Check Active Hospital Nodes",
+          "type": "http_get",
+          "config": {
+            "url": "http://localhost:8085/federated/reputation"
+          }
+        },
+        {
+          "id": "step-3",
+          "name": "Run Federation Round",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8085/federated/round/reputation",
+            "timeout": 30000
+          }
+        },
+        {
+          "id": "step-4",
+          "name": "Check Byzantine Detection",
+          "type": "condition",
+          "config": {
+            "condition": "{{rejected_nodes.length}} > 0"
+          }
+        },
+        {
+          "id": "step-5",
+          "name": "Log Byzantine Alert",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8084/audit/recommendation",
+            "body": {
+              "event": "byzantine_detected",
+              "rejected_nodes": "{{rejected_nodes}}"
+            }
+          },
+          "runs_if": "step-4 == true"
+        },
+        {
+          "id": "step-6",
+          "name": "Update Global Causal Model Weights",
+          "type": "http_post",
+          "config": {
+            "url": "http://localhost:8081/causal/federated/weights"
+          }
+        }
+      ]
+    }
+  ],
+  "claude_judgment_endpoints": {
+    "base_url": "http://localhost:8090",
+    "endpoints": {
+      "causal_drift":              "/judge/causal-drift",
+      "conflicting_recommendations": "/judge/conflicting-recommendations",
+      "alert_triage":              "/judge/alert-triage",
+      "treatment_coherence":       "/judge/treatment-coherence"
+    },
+    "n8n_owns": [
+      "kafka_routing",
+      "service_http_calls",
+      "scheduling",
+      "retry_logic",
+      "audit_triggers",
+      "mongodb_change_streams",
+      "websocket_broadcasts",
+      "zk_proof_triggers"
+    ],
+    "claude_owns": [
+      "causal_drift_significance",
+      "conflicting_recommendation_resolution",
+      "alert_triage_priority",
+      "treatment_coherence_check"
+    ]
+  }
+}
