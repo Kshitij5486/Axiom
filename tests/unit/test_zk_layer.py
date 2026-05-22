@@ -13,11 +13,6 @@ import json
 import pytest
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, os.path.join(
-    os.path.dirname(__file__),
-    "..", "..",
-    "services", "zk-service"
-))
 
 
 # ── ClinicalRecommendationProof ────────────────────
@@ -312,11 +307,6 @@ class TestCausalGraphIntegrityProof:
 class TestZKClient:
 
     def test_generate_graph_proof_calls_service(self):
-        sys.path.insert(0, os.path.join(
-            os.path.dirname(__file__),
-            "..", "..",
-            "services", "causal-engine"
-        ))
         from zk_client import generate_graph_proof
 
         mock_response = MagicMock()
@@ -336,11 +326,6 @@ class TestZKClient:
         assert result == "abc123def456"
 
     def test_generate_graph_proof_returns_none_on_failure(self):
-        sys.path.insert(0, os.path.join(
-            os.path.dirname(__file__),
-            "..", "..",
-            "services", "causal-engine"
-        ))
         from zk_client import generate_graph_proof
 
         with patch(

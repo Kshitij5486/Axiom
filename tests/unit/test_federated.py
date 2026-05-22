@@ -15,16 +15,6 @@ import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
 
-sys.path.insert(0, os.path.join(
-    os.path.dirname(__file__),
-    "..", "..",
-    "services", "federated-service"
-))
-sys.path.insert(0, os.path.join(
-    os.path.dirname(__file__),
-    "..", "..",
-    "services", "causal-engine"
-))
 
 
 # ── ByzantineAggregator ────────────────────────────
