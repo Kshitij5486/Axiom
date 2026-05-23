@@ -1,0 +1,39 @@
+﻿name: PR Checks
+on:
+  pull_request:
+    branches: [master, main]
+jobs:
+  test-python:
+    name: Python Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install pytest dowhy networkx scikit-learn lifelines stable-baselines3 gymnasium torch transformers grpcio grpcio-tools
+      - name: Run all unit tests
+        env:
+          PYTHONPATH: services/causal-engine:services/zk-service:services/federated-service:services/survival-service:services/nlp-service
+        run: python -m pytest tests/unit/ -v --tb=short
+  lint-python:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check services/causal-engine/ || true
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install bandit
+      - run: bandit -r services/causal-engine/ || true
