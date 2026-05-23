@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AXIOM | Population Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Albert+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+::selection{background:#004953;color:#F9F7F2}
+:root{
+  --brand:#004953;--brand-sec:#F9F7F2;--brand-acc:#F0ECE6;
+  --tp:#3E2723;--ts:#5D4037;--ton:#F9F7F2;
+  --danger:#C0392B;--warning:#D68910;--success:#1E8449;--teal:#14b8a6;
+  --r-card:18.8px;--r-btn:117px;
+  --sh-card:0 20px 40px rgba(62,39,35,0.05);
+  --sh-active:0 8px 20px rgba(0,0,0,0.1);
+  --sh-cta:0 10px 30px rgba(0,73,83,0.2);
+  --ease:cubic-bezier(0.16,1,0.3,1);
+}
+html,body{min-height:100%;font-family:'Albert Sans',sans-serif;background:var(--brand-sec);color:var(--ts)}
+
+/* NAV */
+#nav{position:fixed;top:12px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:1500px;height:72px;background:rgba(0,73,83,0.96);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:var(--r-btn);display:flex;align-items:center;padding:0 14px;gap:10px;box-shadow:0 20px 60px rgba(0,73,83,0.25);z-index:100}
+.nav-logo{width:46px;height:46px;background:var(--brand-sec);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--brand);cursor:pointer;flex-shrink:0;transition:transform 1s var(--ease)}
+.nav-logo:hover{transform:rotate(360deg)}
+.nav-div{width:1px;height:28px;background:rgba(255,255,255,0.1);flex-shrink:0}
+.nav-title{font-family:'Playfair Display',serif;color:var(--ton);font-size:17px;font-weight:700;letter-spacing:0.18em}
+.nav-back{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--r-btn);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:600;color:rgba(249,247,242,0.7);cursor:pointer;transition:background 0.2s;text-decoration:none;margin-left:12px}
+.nav-back:hover{background:rgba(255,255,255,0.15)}
+.nav-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.nav-doctor{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:var(--r-btn);background:rgba(255,255,255,0.07)}
+.nav-doctor-name{font-family:'Inter Tight',sans-serif;font-size:12px;color:rgba(249,247,242,0.85);font-weight:500}
+.nav-role{font-size:9px;font-weight:700;padding:2px 8px;border-radius:var(--r-btn);background:rgba(249,247,242,0.14);color:var(--ton);letter-spacing:0.1em;text-transform:uppercase}
+.nav-icon-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.07);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(249,247,242,0.65);transition:background 0.2s}
+.nav-icon-btn:hover{background:rgba(255,255,255,0.15)}
+.ws-dot{width:9px;height:9px;border-radius:50%;background:#1E8449;animation:pulseLive 2s infinite;flex-shrink:0}
+@keyframes pulseLive{0%{box-shadow:0 0 0 0 rgba(30,132,73,0.6)}70%{box-shadow:0 0 0 8px rgba(30,132,73,0)}100%{box-shadow:0 0 0 0 rgba(30,132,73,0)}}
+
+/* MAIN */
+#main{padding-top:96px;padding-bottom:80px;max-width:1500px;margin:0 auto;padding-left:24px;padding-right:24px}
+
+/* PAGE HEADER */
+.page-hdr{margin-bottom:24px;display:flex;align-items:flex-end;justify-content:space-between}
+.page-title{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--tp)}
+.page-sub{font-family:'Albert Sans',sans-serif;font-size:13px;color:rgba(93,64,55,0.5);margin-top:4px}
+.page-stats{display:flex;gap:12px}
+.stat-pill{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--r-btn);background:white;border:1px solid rgba(0,73,83,0.08);box-shadow:var(--sh-card)}
+.stat-val{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--tp)}
+.stat-lbl{font-family:'Albert Sans',sans-serif;font-size:11px;color:rgba(93,64,55,0.5)}
+.stat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* TAB SWITCHER */
+.tab-bar{display:flex;justify-content:center;margin-bottom:24px}
+.tab-inner{background:var(--brand-acc);border-radius:var(--r-btn);padding:4px;display:flex;gap:4px;border:1px solid rgba(0,73,83,0.1)}
+.tab-btn{padding:9px 24px;border-radius:var(--r-btn);border:none;cursor:pointer;font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;transition:all 0.35s var(--ease);color:var(--ts);background:transparent}
+.tab-btn:hover{color:var(--tp)}
+.tab-btn.active{background:var(--brand);color:var(--ton);box-shadow:var(--sh-cta)}
+
+/* TAB PANELS */
+.tab-panel{display:none;animation:fadeUp 0.35s var(--ease)}
+.tab-panel.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* CARD */
+.atlas-card{background:white;border-radius:var(--r-card);box-shadow:var(--sh-card);border:1px solid rgba(0,73,83,0.06);padding:24px;margin-bottom:20px}
+.card-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+.card-title{font-family:'Playfair Display',serif;font-size:18px;font-style:italic;color:var(--tp)}
+.card-sub{font-family:'Albert Sans',sans-serif;font-size:12px;color:rgba(93,64,55,0.45);margin-top:3px}
+.card-right{display:flex;align-items:center;gap:10px}
+
+/* SORT SELECT */
+.sort-select{padding:7px 14px;border-radius:var(--r-btn);border:1px solid rgba(0,73,83,0.14);background:var(--brand-acc);font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:600;color:var(--tp);outline:none;cursor:pointer;transition:border-color 0.2s}
+.sort-select:focus{border-color:var(--brand)}
+
+/* LEGEND */
+.legend-strip{display:flex;align-items:center;gap:12px}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-swatch{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.legend-label{font-family:'Inter Tight',sans-serif;font-size:9px;color:rgba(93,64,55,0.55);text-transform:uppercase;letter-spacing:0.08em}
+
+/* HEATMAP */
+#heatmap-svg{width:100%;overflow:visible}
+.risk-section-label{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em}
+.col-header{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.18em;fill:rgba(93,64,55,0.45)}
+
+/* TOOLTIP */
+#heatmap-tooltip{
+  position:fixed;background:white;border-radius:var(--r-card);
+  box-shadow:var(--sh-active);border:1px solid rgba(0,73,83,0.1);
+  padding:14px;min-width:200px;z-index:500;pointer-events:none;
+  opacity:0;transition:opacity 0.15s var(--ease);
+}
+#heatmap-tooltip.show{opacity:1}
+.tt-name{font-family:'Playfair Display',serif;font-size:13px;font-weight:600;color:var(--tp);margin-bottom:6px}
+.tt-val{font-family:'Inter Tight',sans-serif;font-size:22px;font-weight:700;line-height:1;margin-bottom:4px}
+.tt-range{font-family:'Albert Sans',sans-serif;font-size:11px;color:rgba(93,64,55,0.5);margin-bottom:6px}
+.tt-trend{font-size:16px;font-family:'Inter Tight',sans-serif;font-weight:600}
+.tt-spark{margin-top:8px}
+
+/* COHORT GRAPH */
+#cohort-svg{width:100%;display:block}
+.node-label-text{font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:600;fill:var(--tp);pointer-events:none;text-anchor:middle}
+
+/* PREVALENCE SLIDER */
+.slider-section{background:white;border-radius:var(--r-card);box-shadow:var(--sh-card);border:1px solid rgba(0,73,83,0.06);padding:20px 24px;margin-bottom:16px;display:flex;align-items:center;gap:16px}
+.slider-lbl{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.22em;color:rgba(93,64,55,0.4);flex-shrink:0}
+#prev-slider{flex:1;-webkit-appearance:none;height:5px;border-radius:5px;background:var(--brand-acc);outline:none}
+#prev-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--brand);cursor:pointer;border:2px solid white;box-shadow:var(--sh-cta);transition:transform 0.2s}
+#prev-slider::-webkit-slider-thumb:hover{transform:scale(1.2)}
+.prev-val{font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:700;padding:4px 12px;border-radius:var(--r-btn);background:var(--brand);color:var(--ton);flex-shrink:0}
+
+/* STATS ROW */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+.stats-card{background:white;border-radius:var(--r-card);box-shadow:var(--sh-card);border:1px solid rgba(0,73,83,0.06);padding:16px;display:flex;align-items:center;gap:14px}
+.stats-icon{width:40px;height:40px;border-radius:50%;background:rgba(0,73,83,0.08);display:flex;align-items:center;justify-content:center;color:var(--brand);flex-shrink:0}
+.stats-val{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--tp)}
+.stats-lbl{font-family:'Albert Sans',sans-serif;font-size:11px;color:rgba(93,64,55,0.5);margin-top:2px}
+
+/* NODE DETAIL PANEL */
+#node-panel{position:absolute;right:0;top:0;width:240px;background:white;border-radius:var(--r-card);box-shadow:var(--sh-active);border:1px solid rgba(0,73,83,0.08);padding:18px;transform:translateX(300px);transition:transform 0.4s var(--ease);z-index:50}
+#node-panel.open{transform:translateX(0)}
+.np-title{font-family:'Playfair Display',serif;font-size:16px;font-style:italic;color:var(--tp);margin-bottom:4px}
+.np-sub{font-family:'Albert Sans',sans-serif;font-size:11px;color:rgba(93,64,55,0.5);margin-bottom:14px}
+.np-close{position:absolute;top:12px;right:12px;width:24px;height:24px;border-radius:50%;background:var(--brand-acc);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ts);transition:background 0.2s}
+.np-close:hover{background:rgba(0,73,83,0.12)}
+.np-stat{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(0,73,83,0.06);font-family:'Albert Sans',sans-serif;font-size:12px}
+.np-stat:last-child{border-bottom:none}
+.np-stat-val{font-family:'Inter Tight',sans-serif;font-size:12px;font-weight:600;color:var(--brand)}
+#np-bars{margin-top:12px}
+.np-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.np-bar-label{font-family:'Inter Tight',sans-serif;font-size:10px;color:var(--ts);width:70px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np-bar-track{flex:1;height:10px;background:var(--brand-acc);border-radius:10px;overflow:hidden}
+.np-bar-fill{height:100%;border-radius:10px;transition:width 0.4s var(--ease)}
+
+/* BOTTOM NAV */
+#bottom-nav{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,73,83,0.96);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:var(--r-btn);padding:6px;display:flex;gap:4px;box-shadow:var(--sh-cta);z-index:200}
+.bnav-btn{padding:8px 14px;border-radius:var(--r-btn);border:none;cursor:pointer;font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;transition:all 0.3s var(--ease);color:rgba(249,247,242,0.5);background:transparent}
+.bnav-btn:hover{color:var(--ton)}
+.bnav-btn.active{background:var(--brand-sec);color:var(--brand)}
+
+/* GRAPH WRAP */
+.graph-wrap{position:relative;overflow:hidden}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-logo">A</div>
+  <div class="nav-div"></div>
+  <span class="nav-title">AXIOM</span>
+  <a href="dashboard.html" class="nav-back"><i class="ph ph-arrow-left" style="font-size:13px"></i> Dashboard</a>
+  <div class="nav-right">
+    <div class="nav-doctor">
+      <span class="nav-doctor-name">Dr. Priya Sharma</span>
+      <span class="nav-role">Physician</span>
+    </div>
+    <button class="nav-icon-btn"><i class="ph ph-bell" style="font-size:18px"></i></button>
+    <div class="ws-dot"></div>
+  </div>
+</nav>
+
+<!-- TOOLTIP -->
+<div id="heatmap-tooltip">
+  <div class="tt-name" id="tt-name"></div>
+  <div class="tt-val" id="tt-val"></div>
+  <div class="tt-range" id="tt-range"></div>
+  <div class="tt-trend" id="tt-trend"></div>
+  <div class="tt-spark"><svg id="tt-spark-svg" width="80" height="20"></svg></div>
+</div>
+
+<div id="main">
+
+  <!-- PAGE HEADER -->
+  <div class="page-hdr">
+    <div>
+      <div class="page-title">Population Atlas</div>
+      <div class="page-sub">Causal intelligence across 50 patients · Sprint 10</div>
+    </div>
+    <div class="page-stats">
+      <div class="stat-pill">
+        <div class="stat-dot" style="background:#C0392B"></div>
+        <div><div class="stat-val">12</div><div class="stat-lbl">High Risk</div></div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-dot" style="background:#D68910"></div>
+        <div><div class="stat-val">18</div><div class="stat-lbl">Watch</div></div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-dot" style="background:#1E8449"></div>
+        <div><div class="stat-val">20</div><div class="stat-lbl">Stable</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB SWITCHER -->
+  <div class="tab-bar">
+    <div class="tab-inner">
+      <button class="tab-btn active" id="tab-heatmap" onclick="switchTab('heatmap')">
+        <i class="ph ph-squares-four" style="margin-right:6px"></i>Population Heatmap
+      </button>
+      <button class="tab-btn" id="tab-cohort" onclick="switchTab('cohort')">
+        <i class="ph ph-graph" style="margin-right:6px"></i>Cohort Causal Graph
+      </button>
+    </div>
+  </div>
+
+  <!-- TAB 1: HEATMAP -->
+  <div class="tab-panel active" id="panel-heatmap">
+    <div class="atlas-card">
+      <div class="card-hdr">
+        <div>
+          <div class="card-title">Patient Risk Heatmap</div>
+          <div class="card-sub">50 patients · 5 clinical variables · live</div>
+        </div>
+        <div class="card-right">
+          <select class="sort-select" id="sort-select" onchange="sortHeatmap(this.value)">
+            <option value="risk">Sort: Risk Score</option>
+            <option value="survival">Sort: Survival %</option>
+            <option value="age">Sort: Age</option>
+            <option value="diagnosis">Sort: Diagnosis</option>
+          </select>
+          <div class="legend-strip">
+            <div class="legend-item"><div class="legend-swatch" style="background:#C0392B"></div><span class="legend-label">Critical</span></div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#D68910"></div><span class="legend-label">Warning</span></div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#14b8a6"></div><span class="legend-label">Normal</span></div>
+            <div class="legend-item"><div class="legend-swatch" style="background:rgba(0,73,83,0.15)"></div><span class="legend-label">Borderline</span></div>
+            <div class="legend-item"><div class="legend-swatch" style="background:#F0ECE6"></div><span class="legend-label">No data</span></div>
+          </div>
+        </div>
+      </div>
+      <div id="heatmap-container">
+        <svg id="heatmap-svg"></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: COHORT GRAPH -->
+  <div class="tab-panel" id="panel-cohort">
+    <!-- Prevalence Slider -->
+    <div class="slider-section">
+      <span class="slider-lbl">Min Edge Prevalence</span>
+      <input type="range" id="prev-slider" min="0" max="100" value="0" oninput="updatePrevalence(this.value)">
+      <span class="prev-val" id="prev-val">0%</span>
+    </div>
+
+    <div class="atlas-card">
+      <div class="card-hdr">
+        <div>
+          <div class="card-title">Cohort Causal Graph</div>
+          <div class="card-sub">15 nodes · 22 edges · averaged across 50 patients</div>
+        </div>
+        <div class="card-right">
+          <label style="display:flex;align-items:center;gap:8px;font-family:'Inter Tight',sans-serif;font-size:12px;font-weight:600;color:var(--tp);cursor:pointer">
+            <input type="checkbox" id="show-labels" checked onchange="toggleLabels()" style="accent-color:var(--brand)"> Labels
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-family:'Inter Tight',sans-serif;font-size:12px;font-weight:600;color:var(--tp);cursor:pointer">
+            <input type="checkbox" id="anim-edges" onchange="toggleEdgeAnim()" style="accent-color:var(--brand)"> Animate
+          </label>
+        </div>
+      </div>
+      <div class="graph-wrap" id="graph-wrap">
+        <svg id="cohort-svg" height="500"></svg>
+        <div id="node-panel">
+          <button class="np-close" onclick="closeNodePanel()">✕</button>
+          <div class="np-title" id="np-title">Node</div>
+          <div class="np-sub">Effect size distribution · 50 patients</div>
+          <div id="np-stats"></div>
+          <div id="np-bars"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stats-card">
+        <div class="stats-icon"><i class="ph ph-users" style="font-size:20px"></i></div>
+        <div><div class="stats-val" id="stat-nodes">15</div><div class="stats-lbl">Clinical Variables</div></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-icon"><i class="ph ph-git-branch" style="font-size:20px"></i></div>
+        <div><div class="stats-val" id="stat-edges">22</div><div class="stats-lbl">Visible Edges</div></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-icon"><i class="ph ph-trend-up" style="font-size:20px"></i></div>
+        <div><div class="stats-val" id="stat-avg">0.52</div><div class="stats-lbl">Avg Effect Size</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div id="bottom-nav">
+  <button class="bnav-btn" onclick="location.href='dashboard.html'"><i class="ph ph-squares-four"></i> Dashboard</button>
+  <button class="bnav-btn" onclick="location.href='causal_graph.html'"><i class="ph ph-graph"></i> Causal Graph</button>
+  <button class="bnav-btn" onclick="location.href='counterfactual.html'"><i class="ph ph-sliders"></i> Counterfactual</button>
+  <button class="bnav-btn active"><i class="ph ph-globe"></i> Population</button>
+</div>
+
+<script>
+// ── TAB SWITCHER ──
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('panel-'+tab).classList.add('active');
+  if(tab==='cohort' && !cohortBuilt) buildCohortGraph();
+}
+
+// ── GENERATE 50 PATIENT DEMO DATA ──
+const VARIABLES = [
+  {key:'creatinine', label:'Creatinine',  unit:'μmol/L', normal:[60,110]},
+  {key:'bp',         label:'Systolic BP', unit:'mmHg',   normal:[90,140]},
+  {key:'glucose',    label:'Glucose',     unit:'mg/dL',  normal:[70,100]},
+  {key:'hr',         label:'Heart Rate',  unit:'bpm',    normal:[60,100]},
+  {key:'spo2',       label:'SpO₂',        unit:'%',      normal:[95,100]},
+];
+
+const DIAGNOSES = ['CKD','Hypertension','Type 2 Diabetes','COPD','Heart Failure','Atrial Fibrillation','Lupus'];
+const NAMES = ['Amit Singh','Priya Patel','Ravi Kumar','Sunita Verma','Vikram Nair','Meena Iyer','Arun Mishra','Kavitha Rao','Deepak Shah','Anita Joshi','Suresh Nair','Pooja Mehta','Rajesh Gupta','Lakshmi Iyer','Mohan Das','Sanjay Patel','Geeta Singh','Harish Kumar','Rekha Sharma','Vivek Rao','Arjun Nair','Divya Menon','Kiran Reddy','Sunil Jain','Nisha Kapoor','Manoj Tiwari','Swati Bose','Rahul Verma','Anjali Gupta','Vinod Kumar','Preeti Mishra','Ajay Sharma','Kavya Nair','Ritu Sinha','Naveen Rao','Smita Joshi','Prakash Patel','Asha Reddy','Dinesh Kumar','Pallavi Singh','Sushil Mehta','Usha Iyer','Ramesh Nair','Seetha Patel','Girish Kumar','Nalini Sharma','Venkat Rao','Mala Joshi','Satish Verma','Chandni Gupta'];
+
+function randNorm(mean, std){
+  let u=0,v=0;
+  while(u===0)u=Math.random();
+  while(v===0)v=Math.random();
+  return mean+std*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function genPatientValue(key, risk){
+  const v = VARIABLES.find(x=>x.key===key);
+  const [lo,hi] = v.normal;
+  const mid = (lo+hi)/2;
+  const range = hi-lo;
+  let mean, std;
+  if(risk==='HIGH'){mean=hi+range*0.4; std=range*0.2;}
+  else if(risk==='WATCH'){mean=hi+range*0.1; std=range*0.15;}
+  else {mean=mid; std=range*0.15;}
+  // SpO2 inverse
+  if(key==='spo2'){
+    if(risk==='HIGH')mean=89;
+    else if(risk==='WATCH')mean=93;
+    else mean=97;
+    std=1.5;
+  }
+  return parseFloat(Math.max(lo*0.5, randNorm(mean,std)).toFixed(1));
+}
+
+function genHistory(baseVal, n=8){
+  const h=[baseVal];
+  for(let i=1;i<n;i++) h.push(parseFloat((h[i-1]+(Math.random()-0.48)*2).toFixed(1)));
+  return h;
+}
+
+function genPatients(){
+  const patients=[];
+  const risks=['HIGH','HIGH','HIGH','HIGH','HIGH','HIGH','HIGH','HIGH','HIGH','HIGH','HIGH','HIGH',
+    'WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH','WATCH',
+    'STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE','STABLE'];
+  risks.forEach((risk,i)=>{
+    const vars={};
+    VARIABLES.forEach(v=>{
+      const isNull = Math.random()<0.08;
+      if(isNull){vars[v.key]={value:null,trend:'stable',history:[]};}
+      else{
+        const val=genPatientValue(v.key,risk);
+        const hist=genHistory(val);
+        const last=hist[hist.length-1];
+        const trend=last>val+1?'rising':last<val-1?'falling':'stable';
+        vars[v.key]={value:val,trend,history:hist};
+      }
+    });
+    patients.push({
+      id:'pt-'+i,
+      name:NAMES[i],
+      age:40+Math.floor(Math.random()*35),
+      riskCategory:risk,
+      riskScore:risk==='HIGH'?0.7+Math.random()*0.3:risk==='WATCH'?0.4+Math.random()*0.3:Math.random()*0.4,
+      survivalProbability:risk==='HIGH'?60+Math.random()*25:risk==='WATCH'?75+Math.random()*15:88+Math.random()*12,
+      diagnosisGroup:DIAGNOSES[Math.floor(Math.random()*DIAGNOSES.length)],
+      variables:vars
+    });
+  });
+  return patients;
+}
+
+let patients = genPatients();
+let sortKey = 'risk';
+
+// ── CELL COLOR ──
+function cellColor(val, normal){
+  if(val===null) return '#F0ECE6';
+  const [lo,hi]=normal;
+  const mid=(lo+hi)/2;
+  const range=hi-lo;
+  const dev=Math.abs(val-mid)/(range/2);
+  if(dev>1.5) return '#C0392B';
+  if(dev>0.8) return '#D68910';
+  if(dev>0.5) return 'rgba(0,73,83,0.15)';
+  return '#14b8a6';
+}
+
+// ── BUILD HEATMAP ──
+function buildHeatmap(sortedPatients){
+  const container = document.getElementById('heatmap-container');
+  const W = container.clientWidth;
+  const LABEL_W = 90;
+  const GAP = 2;
+  const CELL_H = 18;
+  const SECTION_GAP = 16;
+  const COL_HEADER_H = 36;
+  const colW = (W - LABEL_W) / VARIABLES.length;
+
+  const sections = ['HIGH','WATCH','STABLE'];
+  let totalH = COL_HEADER_H;
+  sections.forEach(s=>{
+    totalH += sortedPatients.filter(p=>p.riskCategory===s).length*(CELL_H+GAP)+SECTION_GAP+20;
+  });
+
+  const svg = d3.select('#heatmap-svg').attr('width',W).attr('height',totalH);
+  svg.selectAll('*').remove();
+
+  // Column headers
+  VARIABLES.forEach((v,i)=>{
+    svg.append('text')
+      .attr('class','col-header')
+      .attr('x', LABEL_W + i*colW + colW/2)
+      .attr('y', 20)
+      .attr('text-anchor','middle')
+      .text(v.label);
+  });
+
+  // Axis label
+  svg.append('text').attr('x',4).attr('y',20)
+    .attr('font-family','Inter Tight,sans-serif').attr('font-size',10)
+    .attr('fill','rgba(93,64,55,0.35)').attr('font-weight',600)
+    .text('PATIENT');
+
+  let yOff = COL_HEADER_H;
+  const RISK_COLORS = {HIGH:'#C0392B',WATCH:'#D68910',STABLE:'#1E8449'};
+
+  sections.forEach(risk=>{
+    const group = sortedPatients.filter(p=>p.riskCategory===risk);
+
+    // Section label
+    svg.append('text')
+      .attr('class','risk-section-label')
+      .attr('x',4).attr('y',yOff+14)
+      .attr('fill',RISK_COLORS[risk])
+      .text(risk==='HIGH'?'HIGH RISK':risk);
+
+    yOff += 20;
+
+    group.forEach((pt,pi)=>{
+      const y = yOff + pi*(CELL_H+GAP);
+      VARIABLES.forEach((v,vi)=>{
+        const x = LABEL_W + vi*colW;
+        const cell = pt.variables[v.key];
+        const color = cell ? cellColor(cell.value, v.normal) : '#F0ECE6';
+        const rect = svg.append('rect')
+          .attr('x', x+1).attr('y', y)
+          .attr('width', colW-3).attr('height', CELL_H)
+          .attr('rx', 3).attr('fill', color)
+          .attr('cursor','pointer')
+          .attr('data-pt', pt.id)
+          .attr('data-var', v.key);
+
+        rect.on('mouseover', function(event){
+          d3.select(this).transition().duration(150).attr('transform',`translate(${x+1+((colW-3)/2)},${y+CELL_H/2}) scale(1.05) translate(${-(x+1+((colW-3)/2))},${-(y+CELL_H/2)})`);
+          showTooltip(event, pt, v, cell);
+        }).on('mousemove', function(event){
+          moveTooltip(event);
+        }).on('mouseout', function(){
+          d3.select(this).transition().duration(150).attr('transform','');
+          hideTooltip();
+        }).on('click', function(){
+          location.href = `dashboard.html?patient=${pt.id}&highlight=${v.key}`;
+        });
+      });
+    });
+
+    yOff += group.length*(CELL_H+GAP) + SECTION_GAP;
+  });
+}
+
+// ── TOOLTIP ──
+function showTooltip(event, pt, v, cell){
+  const tt = document.getElementById('heatmap-tooltip');
+  document.getElementById('tt-name').textContent = pt.name+', '+pt.age;
+  const val = cell ? cell.value : null;
+  const color = val!==null ? cellColor(val, v.normal) : '#94a3b8';
+  const valEl = document.getElementById('tt-val');
+  valEl.textContent = val!==null ? val+' '+v.unit : 'No data';
+  valEl.style.color = color;
+  document.getElementById('tt-range').textContent = `Normal: ${v.normal[0]}–${v.normal[1]} ${v.unit}`;
+  const trendEl = document.getElementById('tt-trend');
+  if(cell && cell.trend){
+    const arrows = {rising:'↑ Rising',falling:'↓ Falling',stable:'→ Stable'};
+    const trendColors = {rising:'#C0392B',falling:'#1E8449',stable:'#D68910'};
+    trendEl.textContent = arrows[cell.trend];
+    trendEl.style.color = trendColors[cell.trend];
+  } else { trendEl.textContent=''; }
+
+  // Sparkline
+  if(cell && cell.history && cell.history.length>1){
+    const spark = d3.select('#tt-spark-svg');
+    spark.selectAll('*').remove();
+    const xs = d3.scaleLinear().domain([0,cell.history.length-1]).range([0,80]);
+    const ys = d3.scaleLinear().domain([d3.min(cell.history),d3.max(cell.history)]).range([18,2]);
+    const line = d3.line().x((_,i)=>xs(i)).y(d=>ys(d)).curve(d3.curveCatmullRom);
+    spark.append('path').datum(cell.history).attr('d',line).attr('fill','none').attr('stroke',color).attr('stroke-width',1.5);
+  }
+
+  tt.classList.add('show');
+  moveTooltip(event);
+}
+function moveTooltip(event){
+  const tt = document.getElementById('heatmap-tooltip');
+  let x = event.clientX+12, y = event.clientY-10;
+  if(x+210>window.innerWidth) x=event.clientX-220;
+  if(y+140>window.innerHeight) y=event.clientY-150;
+  tt.style.left=x+'px'; tt.style.top=y+'px';
+}
+function hideTooltip(){
+  document.getElementById('heatmap-tooltip').classList.remove('show');
+}
+
+// ── SORT HEATMAP ──
+function sortHeatmap(key){
+  sortKey=key;
+  const sorted=[];
+  ['HIGH','WATCH','STABLE'].forEach(risk=>{
+    const group=patients.filter(p=>p.riskCategory===risk);
+    group.sort((a,b)=>{
+      if(key==='survival') return b.survivalProbability-a.survivalProbability;
+      if(key==='age') return a.age-b.age;
+      if(key==='diagnosis') return a.diagnosisGroup.localeCompare(b.diagnosisGroup);
+      return b.riskScore-a.riskScore;
+    });
+    sorted.push(...group);
+  });
+  buildHeatmap(sorted);
+}
+
+// ── COHORT GRAPH DATA ──
+const GRAPH_NODES = [
+  {id:'creatinine',label:'Creatinine',type:'lab'},
+  {id:'sbp',label:'BP Systolic',type:'vital'},
+  {id:'dbp',label:'BP Diastolic',type:'vital'},
+  {id:'glucose',label:'Glucose',type:'lab'},
+  {id:'hba1c',label:'HbA1c',type:'lab'},
+  {id:'hr',label:'Heart Rate',type:'vital'},
+  {id:'spo2',label:'SpO₂',type:'vital'},
+  {id:'egfr',label:'eGFR',type:'lab'},
+  {id:'crp',label:'CRP',type:'lab'},
+  {id:'age',label:'Age',type:'demographic'},
+  {id:'bmi',label:'BMI',type:'demographic'},
+  {id:'insulin',label:'Insulin',type:'drug'},
+  {id:'metformin',label:'Metformin',type:'drug'},
+  {id:'lisinopril',label:'Lisinopril',type:'drug'},
+  {id:'furosemide',label:'Furosemide',type:'drug'},
+];
+
+const GRAPH_EDGES = [
+  {source:'creatinine',target:'egfr',effectSize:0.82,prevalence:0.95,direction:'negative'},
+  {source:'sbp',target:'hr',effectSize:0.61,prevalence:0.88,direction:'positive'},
+  {source:'glucose',target:'hba1c',effectSize:0.91,prevalence:0.97,direction:'positive'},
+  {source:'metformin',target:'glucose',effectSize:0.74,prevalence:0.85,direction:'negative'},
+  {source:'lisinopril',target:'sbp',effectSize:0.68,prevalence:0.82,direction:'negative'},
+  {source:'bmi',target:'glucose',effectSize:0.55,prevalence:0.76,direction:'positive'},
+  {source:'age',target:'egfr',effectSize:0.48,prevalence:0.91,direction:'negative'},
+  {source:'sbp',target:'creatinine',effectSize:0.42,prevalence:0.79,direction:'positive'},
+  {source:'furosemide',target:'creatinine',effectSize:0.38,prevalence:0.71,direction:'positive'},
+  {source:'insulin',target:'glucose',effectSize:0.79,prevalence:0.88,direction:'negative'},
+  {source:'crp',target:'hr',effectSize:0.31,prevalence:0.55,direction:'positive'},
+  {source:'bmi',target:'sbp',effectSize:0.44,prevalence:0.72,direction:'positive'},
+  {source:'age',target:'sbp',effectSize:0.51,prevalence:0.84,direction:'positive'},
+  {source:'glucose',target:'crp',effectSize:0.36,prevalence:0.61,direction:'positive'},
+  {source:'spo2',target:'hr',effectSize:0.29,prevalence:0.45,direction:'negative'},
+  {source:'egfr',target:'crp',effectSize:0.33,prevalence:0.58,direction:'negative'},
+  {source:'hba1c',target:'creatinine',effectSize:0.27,prevalence:0.42,direction:'positive'},
+  {source:'lisinopril',target:'creatinine',effectSize:0.35,prevalence:0.68,direction:'negative'},
+  {source:'furosemide',target:'sbp',effectSize:0.41,prevalence:0.74,direction:'negative'},
+  {source:'age',target:'bmi',effectSize:0.22,prevalence:0.38,direction:'positive'},
+  {source:'dbp',target:'sbp',effectSize:0.78,prevalence:0.93,direction:'positive'},
+  {source:'bmi',target:'crp',effectSize:0.46,prevalence:0.67,direction:'positive'},
+];
+
+let cohortBuilt=false;
+let simulation=null;
+let showLabels=true;
+let animEdges=false;
+let prevThreshold=0;
+let selectedNode=null;
+let animFrame=null;
+
+function edgeColor(prev){
+  if(prev>0.8) return '#004953';
+  if(prev>0.4) return '#D68910';
+  return 'rgba(93,64,55,0.25)';
+}
+function nodeColor(type){
+  const colors={drug:'rgba(168,85,247,0.15)',vital:'rgba(0,73,83,0.12)',lab:'rgba(20,184,166,0.12)',demographic:'rgba(148,163,184,0.12)'};
+  return colors[type]||colors.vital;
+}
+function nodeStroke(type){
+  const s={drug:'#a855f7',vital:'#004953',lab:'#14b8a6',demographic:'#94a3b8'};
+  return s[type]||s.vital;
+}
+
+function buildCohortGraph(){
+  cohortBuilt=true;
+  const wrap=document.getElementById('graph-wrap');
+  const W=wrap.clientWidth-240;
+  const H=500;
+  const svg=d3.select('#cohort-svg').attr('width',W).attr('height',H);
+  svg.selectAll('*').remove();
+
+  // Defs: arrowheads
+  const defs=svg.append('defs');
+  [{id:'arr-teal',color:'#004953'},{id:'arr-amber',color:'#D68910'},{id:'arr-grey',color:'rgba(93,64,55,0.3)'}].forEach(a=>{
+    defs.append('marker').attr('id',a.id).attr('markerWidth',8).attr('markerHeight',8)
+      .attr('refX',20).attr('refY',3).attr('orient','auto')
+      .append('path').attr('d','M0,0 L0,6 L8,3 z').attr('fill',a.color).attr('opacity',0.7);
+  });
+
+  const nodes=GRAPH_NODES.map(n=>({...n}));
+  const edges=GRAPH_EDGES.map(e=>({...e,
+    sourceObj:nodes.find(n=>n.id===e.source),
+    targetObj:nodes.find(n=>n.id===e.target)
+  })).filter(e=>e.sourceObj&&e.targetObj);
+
+  simulation=d3.forceSimulation(nodes)
+    .force('charge',d3.forceManyBody().strength(-180))
+    .force('link',d3.forceLink(edges).id(d=>d.id).distance(90).strength(0.6))
+    .force('center',d3.forceCenter(W/2,H/2))
+    .force('collide',d3.forceCollide().radius(32))
+    .alpha(0.8);
+
+  // Edges
+  const edgeEls=svg.append('g').attr('class','edges').selectAll('line')
+    .data(edges).join('line')
+    .attr('stroke',d=>edgeColor(d.prevalence))
+    .attr('stroke-width',d=>Math.max(0.5,d.effectSize*5))
+    .attr('stroke-opacity',d=>0.3+d.prevalence*0.7)
+    .attr('stroke-dasharray',d=>d.direction==='negative'?'5,4':'none')
+    .attr('marker-end',d=>d.prevalence>0.8?'url(#arr-teal)':d.prevalence>0.4?'url(#arr-amber)':'url(#arr-grey)');
+
+  // Node groups
+  const nodeGrp=svg.append('g').attr('class','nodes').selectAll('g')
+    .data(nodes).join('g')
+    .attr('cursor','pointer')
+    .call(d3.drag()
+      .on('start',dragStart)
+      .on('drag',dragging)
+      .on('end',dragEnd)
+    )
+    .on('click',(_,d)=>showNodePanel(d,edges));
+
+  nodeGrp.append('circle')
+    .attr('r',22)
+    .attr('fill',d=>nodeColor(d.type))
+    .attr('stroke',d=>nodeStroke(d.type))
+    .attr('stroke-width',1.5);
+
+  const labelGrp=nodeGrp.append('text')
+    .attr('class','node-label-text')
+    .attr('dy',35)
+    .text(d=>d.label);
+
+  simulation.on('tick',()=>{
+    edgeEls
+      .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+      .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    nodeGrp.attr('transform',d=>`translate(${d.x},${d.y})`);
+  });
+
+  function dragStart(event,d){
+    if(!event.active)simulation.alphaTarget(0.3).restart();
+    d.fx=d.x; d.fy=d.y;
+  }
+  function dragging(event,d){ d.fx=event.x; d.fy=event.y; }
+  function dragEnd(event,d){
+    if(!event.active)simulation.alphaTarget(0);
+    d.fx=null; d.fy=null;
+  }
+
+  // Store refs
+  window._edgeEls=edgeEls;
+  window._nodeGrp=nodeGrp;
+  window._labelGrp=labelGrp;
+}
+
+function toggleLabels(){
+  showLabels=document.getElementById('show-labels').checked;
+  if(window._nodeGrp){
+    window._nodeGrp.selectAll('text').attr('opacity',showLabels?1:0);
+  }
+}
+function toggleEdgeAnim(){
+  animEdges=document.getElementById('anim-edges').checked;
+  if(!animEdges && animFrame){ cancelAnimationFrame(animFrame); animFrame=null; return; }
+  if(animEdges) animateEdges();
+}
+let dashOffset=0;
+function animateEdges(){
+  dashOffset-=1;
+  if(window._edgeEls){
+    window._edgeEls.filter(d=>d.direction==='negative')
+      .attr('stroke-dashoffset',d=>dashOffset*(0.5+d.effectSize));
+  }
+  animFrame=requestAnimationFrame(animateEdges);
+}
+
+function updatePrevalence(val){
+  prevThreshold=val/100;
+  document.getElementById('prev-val').textContent=val+'%';
+  if(!window._edgeEls) return;
+  window._edgeEls.transition().duration(300)
+    .attr('stroke-opacity',d=>d.prevalence>=prevThreshold?(0.3+d.prevalence*0.7):0)
+    .attr('stroke-width',d=>d.prevalence>=prevThreshold?Math.max(0.5,d.effectSize*5):0);
+  const visible=GRAPH_EDGES.filter(e=>e.prevalence>=prevThreshold).length;
+  document.getElementById('stat-edges').textContent=visible;
+  if(window._nodeGrp){
+    window._nodeGrp.selectAll('circle').transition().duration(300)
+      .attr('opacity',d=>{
+        const connected=GRAPH_EDGES.some(e=>(e.source===d.id||e.target===d.id)&&e.prevalence>=prevThreshold);
+        return connected?1:0.3;
+      });
+  }
+}
+
+function showNodePanel(node, edges){
+  selectedNode=node;
+  document.getElementById('np-title').textContent=node.label;
+  const connected=edges.filter(e=>e.source===node.id||e.target===node.id||e.sourceObj?.id===node.id||e.targetObj?.id===node.id);
+  const avgEff=connected.length?d3.mean(connected,e=>e.effectSize).toFixed(2):'—';
+  document.getElementById('np-stats').innerHTML=`
+    <div class="np-stat"><span>Connected edges</span><span class="np-stat-val">${connected.length}</span></div>
+    <div class="np-stat"><span>Avg effect size</span><span class="np-stat-val">${avgEff}</span></div>
+    <div class="np-stat"><span>Node type</span><span class="np-stat-val" style="text-transform:capitalize">${node.type}</span></div>
+  `;
+  const barsDiv=document.getElementById('np-bars');
+  barsDiv.innerHTML='<div style="font-family:Inter Tight,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(93,64,55,0.38);margin-bottom:8px">Connections</div>';
+  connected.slice(0,6).forEach(e=>{
+    const other=e.source===node.id?e.target:e.source;
+    const pct=Math.round(e.effectSize*100);
+    barsDiv.innerHTML+=`<div class="np-bar-row">
+      <div class="np-bar-label">${other}</div>
+      <div class="np-bar-track"><div class="np-bar-fill" style="width:${pct}%;background:${edgeColor(e.prevalence)}"></div></div>
+      <span style="font-family:Inter Tight,sans-serif;font-size:10px;font-weight:600;color:var(--brand);min-width:28px;text-align:right">${e.effectSize.toFixed(2)}</span>
+    </div>`;
+  });
+  document.getElementById('node-panel').classList.add('open');
+}
+function closeNodePanel(){ document.getElementById('node-panel').classList.remove('open'); }
+
+// ── INIT ──
+window.addEventListener('load',()=>{
+  sortHeatmap('risk');
+});
+window.addEventListener('resize',()=>{
+  sortHeatmap(sortKey);
+  if(cohortBuilt) buildCohortGraph();
+});
+</script>
+</body>
+</html>
