@@ -609,7 +609,7 @@ async function fetchPopulationData(){
     const res = await fetch('http://localhost:4000/graphql', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({query:query { populationHeatmap { patientId riskCategory variables } cohortGraph { nodes { id label type } edges { source target effectSize prevalence direction } } }}),
+      body: JSON.stringify({query:"{ populationHeatmap { patientId riskCategory variables } cohortGraph { nodes { id label type } edges { source target effectSize prevalence direction } } }"}), 
       signal: AbortSignal.timeout(3000)
     });
     const json = await res.json();
