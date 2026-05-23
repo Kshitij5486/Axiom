@@ -163,7 +163,7 @@ html,body{height:100%;overflow:hidden;font-family:'Albert Sans',sans-serif;backg
       <span class="nav-role">Physician</span>
     </div>
     <button class="nav-icon-btn"><i class="ph ph-bell" style="font-size:18px"></i></button>
-    <div class="ws-dot"></div>
+    <div class="ws-dot" id="ws-dot-graph" title="Connecting..."></div>
   </div>
 </nav>
 
@@ -754,30 +754,100 @@ const urlParams = new URLSearchParams(window.location.search);
 const pid = urlParams.get('patient') || '3319a93d';
 
 async function loadGraph(patientId){
+  // Strategy 1: Try GraphQL gateway (port 4000)
   try {
-    const res = await fetch(`http://localhost:8081/causal/graph/${patientId}`, {signal: AbortSignal.timeout(4000)});
-    if(!res.ok) throw new Error('API error');
-    const data = await res.json();
-    // Transform API response to our format
-    const nodes = (data.node_list||[]).map(n => ({
-      id: n, label: n.replace(/_/g,' '),
-      type: ['glucose','creatinine','heart_rate','systolic_bp','spo2','hemoglobin'].includes(n) ? 'lab'
-          : ['age','gender_encoded'].includes(n) ? 'demographic' : 'vital',
-      centrality: 1 + Math.random() * 1.5
-    }));
-    const effects = data.effect_sizes || {};
-    const edges = Object.entries(effects).map(([key,val]) => {
-      const [src,tgt] = key.split('->');
-      const eff = typeof val==='object' ? val.effect : val;
-      return {source:src, target:tgt, effect:eff||0, nlp:val?.nlp_source||false, zk:data.zk_integrity_proof||'', ci:[eff*0.7, eff*1.3]};
-    }).filter(e=>e.source&&e.target);
+    const gqlQuery = {
+      query: `query GetCausalGraph($pid: String!) {
+        causalGraph(patientId: $pid) {
+          nodeList
+          effectSizes
+          zkIntegrityProof
+          nlpEdges
+        }
+      }`,
+      variables: { pid: patientId }
+    };
+    const res = await fetch('http://localhost:4000/graphql', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(gqlQuery),
+      signal: AbortSignal.timeout(3000)
+    });
+    if(!res.ok) throw new Error('GraphQL error');
+    const json = await res.json();
+    const data = json?.data?.causalGraph;
+    if(!data) throw new Error('No data');
+    console.log('GraphQL connected');
+    const nodes = transformNodes(data.nodeList || []);
+    const edges = transformEdges(data.effectSizes || {}, data.nlpEdges || [], data.zkIntegrityProof || '');
     buildGraph({patient_id:patientId, nodes, edges});
     buildLabels({nodes});
-  } catch(err){
-    console.log('API offline, using demo data');
-    buildGraph(DEMO_GRAPH);
-    buildLabels(DEMO_GRAPH);
+    updateConnectionStatus('GraphQL · port 4000', true);
+    return;
+  } catch(e){ console.log('GraphQL unavailable:', e.message); }
+
+  // Strategy 2: Try REST causal engine directly (port 8081)
+  try {
+    const res = await fetch(`http://localhost:8081/causal/graph/${patientId}`, {
+      signal: AbortSignal.timeout(3000)
+    });
+    if(!res.ok) throw new Error('REST error');
+    const data = await res.json();
+    console.log('REST API connected');
+    const nodes = transformNodes(data.node_list || []);
+    const effects = data.effect_sizes || {};
+    const edges = transformEdges(effects, [], data.zk_integrity_proof || '');
+    buildGraph({patient_id:patientId, nodes, edges});
+    buildLabels({nodes});
+    updateConnectionStatus('REST · port 8081', true);
+    return;
+  } catch(e){ console.log('REST unavailable:', e.message); }
+
+  // Strategy 3: Demo fallback
+  console.log('Using demo data');
+  buildGraph(DEMO_GRAPH);
+  buildLabels(DEMO_GRAPH);
+  updateConnectionStatus('Demo data · offline', false);
+}
+
+function transformNodes(nodeList){
+  const LAB_NODES = ['glucose','creatinine','heart_rate','systolic_bp','spo2','hemoglobin','hba1c','egfr'];
+  const MED_NODES = ['furosemide','lisinopril','metformin','aspirin'];
+  const DEMO_NODES = ['age','gender_encoded','gender'];
+  return nodeList.map(n => ({
+    id: n,
+    label: n.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),
+    type: MED_NODES.some(m=>n.includes(m)) ? 'medication'
+        : DEMO_NODES.some(d=>n.includes(d)) ? 'demographic'
+        : LAB_NODES.some(l=>n.includes(l)) ? 'lab' : 'vital',
+    centrality: 1 + Math.random()*1.8
+  }));
+}
+
+function transformEdges(effectSizes, nlpEdges, zkProof){
+  const edges = [];
+  Object.entries(effectSizes).forEach(([key, val]) => {
+    const parts = key.split('->');
+    if(parts.length !== 2) return;
+    const [src, tgt] = parts;
+    const eff = typeof val==='object' ? (val.effect||0) : (val||0);
+    const isNlp = nlpEdges.includes(key) || (typeof val==='object' && val.nlp_source);
+    edges.push({
+      source: src, target: tgt, effect: eff,
+      nlp: isNlp, zk: zkProof,
+      ci: [eff*0.72, eff*1.28]
+    });
+  });
+  return edges;
+}
+
+function updateConnectionStatus(msg, online){
+  const dot = document.getElementById('ws-dot-graph');
+  if(dot){
+    dot.title = msg;
+    dot.style.background = online ? '#1E8449' : '#D68910';
   }
+  console.log('Connection status:', msg);
 }
 
 loadGraph(pid);

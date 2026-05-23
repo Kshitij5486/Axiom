@@ -336,7 +336,7 @@ function selectDrug(drug){
 }
 
 // ── RUN SIMULATION ──
-function runSimulation(){
+async function runSimulation(){
   if(!selectedDrug){ alert('Select an intervention first'); return; }
   simulated = true;
 
@@ -345,7 +345,19 @@ function runSimulation(){
   document.getElementById('sim-metrics').style.display='none';
   document.getElementById('sim-survival').style.display='none';
 
-  // Simulate API delay
+  // Try GraphQL first, then REST, then demo
+  let apiResult = null;
+  try {
+    const res = await fetch('http://localhost:4000/graphql', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({query:`mutation RunCF($pid:String!,$drug:String!){runCounterfactual(patientId:$pid,intervention:$drug){creatinine sbp glucose heartRate survivalDelta}}`,variables:{pid:'3319a93d',drug:selectedDrug}}),
+      signal: AbortSignal.timeout(3000)
+    });
+    const json = await res.json();
+    apiResult = json?.data?.runCounterfactual;
+  } catch(e){ console.log('API offline, using demo calculation'); }
+
   setTimeout(()=>{
     const fx = DRUG_EFFECTS[selectedDrug] || DRUG_EFFECTS.lisinopril;
     const sbpMag = sliderVals.sbp / 10;
