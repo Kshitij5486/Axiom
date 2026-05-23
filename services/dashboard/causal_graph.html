@@ -498,13 +498,27 @@ canvas.addEventListener('mousemove', e => {
 // ── CLICK → SHOW PATH DETAILS ──
 canvas.addEventListener('click', e => {
   raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObjects(nodeMeshes);
-  if(hits.length > 0){
-    showNodeDetails(hits[0].object.userData.node);
-  } else {
-    document.getElementById('left-panel').classList.remove('show');
-    resetEdgeOpacity();
+
+  // Check node hits first
+  const nodeHits = raycaster.intersectObjects(nodeMeshes);
+  if(nodeHits.length > 0){
+    showNodeDetails(nodeHits[0].object.userData.node);
+    return;
   }
+
+  // Check edge hits (expand raycaster threshold)
+  raycaster.params.Line = {threshold: 1.2};
+  const edgeHits = raycaster.intersectObjects(edgeLines);
+  if(edgeHits.length > 0){
+    const edge = edgeHits[0].object.userData.edge;
+    if(edge) showEdgeDetails(edge);
+    return;
+  }
+
+  // Click empty space — deselect
+  document.getElementById('left-panel').classList.remove('show');
+  resetEdgeOpacity();
+  resetNodeHighlight();
 });
 
 function showNodeDetails(node){
@@ -550,7 +564,70 @@ function showNodeDetails(node){
 }
 
 function resetEdgeOpacity(){
-  edgeLines.forEach(l => { l.material.opacity = 0.6; });
+  edgeLines.forEach(l => {
+    const e = l.userData.edge;
+    if(!e) return;
+    const ciWidth = Math.abs((e.ci[1]||0)-(e.ci[0]||0));
+    l.material.opacity = Math.max(0.3, Math.min(0.9, 1 - ciWidth*2));
+  });
+}
+
+function resetNodeHighlight(){
+  nodeMeshes.forEach(m => {
+    m.material.emissiveIntensity = 0.18;
+    m.scale.set(1,1,1);
+  });
+}
+
+function showEdgeDetails(edge){
+  const panel = document.getElementById('left-panel');
+  panel.classList.add('show');
+  document.getElementById('lp-title').textContent = edge.source + ' → ' + edge.target;
+
+  const badge = document.getElementById('lp-badge');
+  badge.textContent = edge.nlp ? 'NLP Derived' : 'DoWhy Causal';
+  badge.style.background = edge.nlp ? 'rgba(249,115,22,0.12)' : 'rgba(0,73,83,0.1)';
+  badge.style.color = edge.nlp ? '#f97316' : '#004953';
+
+  // Highlight this edge
+  edgeLines.forEach(l => {
+    const e = l.userData.edge;
+    const isThis = e && e.source===edge.source && e.target===edge.target;
+    l.material.opacity = isThis ? 0.95 : 0.06;
+  });
+
+  // Highlight connected nodes
+  nodeMeshes.forEach(m => {
+    const nid = m.userData.node.id;
+    if(nid===edge.source || nid===edge.target){
+      m.material.emissiveIntensity = 0.5;
+      m.scale.set(1.2,1.2,1.2);
+    } else {
+      m.material.emissiveIntensity = 0.05;
+    }
+  });
+
+  const eff = edge.effect.toFixed(4);
+  const ciW = Math.abs((edge.ci[1]||0)-(edge.ci[0]||0));
+  const ciLeft = 15;
+  const ciWidth = Math.max(20, Math.min(70, 100-ciW*200));
+  const direction = edge.effect>0 ? 'Positive' : 'Negative';
+  const dirColor = edge.effect>0 ? '#004953' : '#C0392B';
+
+  document.getElementById('lp-paths').innerHTML = `
+    <div class="path-row">
+      <div style="font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(93,64,55,0.4);margin-bottom:8px">Causal Effect</div>
+      <div class="path-effect" style="color:${dirColor}">${edge.effect>0?'+':""}${eff}</div>
+      <div style="font-family:'Albert Sans',sans-serif;font-size:10px;color:rgba(93,64,55,0.5);margin-bottom:8px">${direction} effect · ${edge.nlp?'NLP evidence':'DoWhy estimate'}</div>
+      <div style="font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(93,64,55,0.4);margin-bottom:4px">Confidence Interval</div>
+      <div style="font-family:'Albert Sans',sans-serif;font-size:11px;color:var(--ts);margin-bottom:6px">[${(edge.ci[0]||0).toFixed(4)}, ${(edge.ci[1]||0).toFixed(4)}]</div>
+      <div class="ci-track"><div class="ci-fill" style="left:${ciLeft}%;width:${ciWidth}%"></div></div>
+      <div style="margin-top:12px">
+        <div style="font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(93,64,55,0.4);margin-bottom:6px">ZK Integrity Proof</div>
+        <div class="zk-badge"><i class="ph-bold ph-shield-check" style="font-size:11px"></i> ${edge.zk ? edge.zk.slice(0,12)+'…' : 'Pending'}</div>
+      </div>
+    </div>
+  `;
 }
 
 // ── DOUBLE CLICK FLY TO ──
