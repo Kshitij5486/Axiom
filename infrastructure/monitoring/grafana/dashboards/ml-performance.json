@@ -1,0 +1,56 @@
+﻿{
+  "title": "Axiom ML Model Performance",
+  "uid": "axiom-ml-perf",
+  "tags": ["axiom", "ml"],
+  "refresh": "1m",
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "title": "Survival Model C-Index",
+      "type": "stat",
+      "gridPos": {"x":0,"y":0,"w":6,"h":4},
+      "targets": [{"expr": "axiom_survival_cindex", "legendFormat": "C-Index"}],
+      "options": {"colorMode": "background"},
+      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "#004953"}, "decimals": 3, "min": 0, "max": 1}}
+    },
+    {
+      "id": 2,
+      "title": "PPO Policy Mean Reward",
+      "type": "stat",
+      "gridPos": {"x":6,"y":0,"w":6,"h":4},
+      "targets": [{"expr": "axiom_rl_policy_reward", "legendFormat": "Reward"}],
+      "fieldConfig": {"defaults": {"decimals": 3}}
+    },
+    {
+      "id": 3,
+      "title": "Byzantine Violations",
+      "type": "stat",
+      "gridPos": {"x":12,"y":0,"w":6,"h":4},
+      "targets": [{"expr": "axiom_byzantine_violations_total", "legendFormat": "Violations"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 1, "color": "red"}]}}}
+    },
+    {
+      "id": 4,
+      "title": "Federated Round Duration",
+      "type": "timeseries",
+      "gridPos": {"x":0,"y":4,"w":12,"h":8},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, rate(axiom_federated_round_duration_seconds_bucket[10m]))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, rate(axiom_federated_round_duration_seconds_bucket[10m]))", "legendFormat": "p95"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "id": 5,
+      "title": "ZK Proof Generation Time",
+      "type": "timeseries",
+      "gridPos": {"x":12,"y":4,"w":12,"h":8},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, rate(axiom_zk_proof_generation_seconds_bucket[5m]))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, rate(axiom_zk_proof_generation_seconds_bucket[5m]))", "legendFormat": "p95"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    }
+  ]
+}

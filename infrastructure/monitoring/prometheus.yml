@@ -1,24 +1,49 @@
-global:
+﻿global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    project: axiom
-    env: development
+    cluster: axiom-clinical
+    environment: production
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
 
 scrape_configs:
+  - job_name: axiom-causal-engine
+    static_configs:
+      - targets: ["causal-engine:8081"]
+    metrics_path: /metrics
+    scrape_interval: 15s
+
+  - job_name: axiom-survival-service
+    static_configs:
+      - targets: ["survival-service:8082"]
+    metrics_path: /metrics
+
+  - job_name: axiom-nlp-service
+    static_configs:
+      - targets: ["nlp-service:8083"]
+    metrics_path: /metrics
+
+  - job_name: axiom-zk-service
+    static_configs:
+      - targets: ["zk-service:8084"]
+    metrics_path: /metrics
+
+  - job_name: axiom-federated-service
+    static_configs:
+      - targets: ["federated-service:8085"]
+    metrics_path: /metrics
+
+  - job_name: axiom-api-gateway
+    static_configs:
+      - targets: ["api-gateway:4000"]
+    metrics_path: /metrics
 
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
-
-  - job_name: axiom_fhir_adapter
-    static_configs:
-      - targets: ["host.docker.internal:8080"]
-    metrics_path: /actuator/prometheus
-    scrape_interval: 15s
-
-  - job_name: axiom_normalisation
-    static_configs:
-      - targets: ["host.docker.internal:8086"]
-    metrics_path: /metrics
-    scrape_interval: 15s

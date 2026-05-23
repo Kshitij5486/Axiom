@@ -1,0 +1,75 @@
+﻿{
+  "title": "Axiom Clinical Operations",
+  "uid": "axiom-clinical-ops",
+  "tags": ["axiom", "clinical"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "title": "Active Patients",
+      "type": "stat",
+      "gridPos": {"x":0,"y":0,"w":6,"h":4},
+      "targets": [{"expr": "axiom_active_patients_total", "legendFormat": "Patients"}],
+      "options": {"colorMode": "background", "graphMode": "none"},
+      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "#004953"}}}
+    },
+    {
+      "id": 2,
+      "title": "Active Alerts",
+      "type": "stat",
+      "gridPos": {"x":6,"y":0,"w":6,"h":4},
+      "targets": [{"expr": "axiom_active_alerts_total", "legendFormat": "Alerts"}],
+      "options": {"colorMode": "background"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 5, "color": "yellow"}, {"value": 10, "color": "red"}]}}}
+    },
+    {
+      "id": 3,
+      "title": "ZK Proof Verification Rate",
+      "type": "stat",
+      "gridPos": {"x":12,"y":0,"w":6,"h":4},
+      "targets": [{"expr": "rate(axiom_zk_proof_verify_total[5m])", "legendFormat": "Proofs/sec"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "id": 4,
+      "title": "Recommendations Generated",
+      "type": "timeseries",
+      "gridPos": {"x":0,"y":4,"w":12,"h":8},
+      "targets": [{"expr": "rate(axiom_recommendations_total[5m])", "legendFormat": "Recommendations/sec"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "#004953"}, "custom": {"fillOpacity": 10}}}
+    },
+    {
+      "id": 5,
+      "title": "Causal Graph Build Time",
+      "type": "timeseries",
+      "gridPos": {"x":12,"y":4,"w":12,"h":8},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, rate(axiom_causal_graph_build_seconds_bucket[5m]))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, rate(axiom_causal_graph_build_seconds_bucket[5m]))", "legendFormat": "p95"},
+        {"expr": "histogram_quantile(0.99, rate(axiom_causal_graph_build_seconds_bucket[5m]))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "id": 6,
+      "title": "Anomaly Detections by Severity",
+      "type": "timeseries",
+      "gridPos": {"x":0,"y":12,"w":12,"h":8},
+      "targets": [
+        {"expr": "rate(axiom_anomaly_detections_total{severity=\"critical\"}[5m])", "legendFormat": "Critical"},
+        {"expr": "rate(axiom_anomaly_detections_total{severity=\"warning\"}[5m])", "legendFormat": "Warning"},
+        {"expr": "rate(axiom_anomaly_detections_total{severity=\"predictive\"}[5m])", "legendFormat": "Predictive"}
+      ]
+    },
+    {
+      "id": 7,
+      "title": "API Endpoint Latency (p95)",
+      "type": "timeseries",
+      "gridPos": {"x":12,"y":12,"w":12,"h":8},
+      "targets": [{"expr": "histogram_quantile(0.95, rate(axiom_inference_latency_seconds_bucket[5m]))", "legendFormat": "p95 latency"}],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    }
+  ]
+}

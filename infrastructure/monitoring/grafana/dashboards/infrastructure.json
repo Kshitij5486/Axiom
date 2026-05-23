@@ -1,0 +1,39 @@
+﻿{
+  "title": "Axiom Infrastructure Health",
+  "uid": "axiom-infra",
+  "tags": ["axiom", "infrastructure"],
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "CPU Usage by Service",
+      "type": "timeseries",
+      "gridPos": {"x":0,"y":0,"w":12,"h":8},
+      "targets": [{"expr": "rate(container_cpu_usage_seconds_total{namespace=\"axiom-clinical\"}[5m])", "legendFormat": "{{pod}}"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit"}}
+    },
+    {
+      "id": 2,
+      "title": "Memory Usage by Service",
+      "type": "timeseries",
+      "gridPos": {"x":12,"y":0,"w":12,"h":8},
+      "targets": [{"expr": "container_memory_usage_bytes{namespace=\"axiom-clinical\"}", "legendFormat": "{{pod}}"}],
+      "fieldConfig": {"defaults": {"unit": "bytes"}}
+    },
+    {
+      "id": 3,
+      "title": "WebSocket Active Connections",
+      "type": "stat",
+      "gridPos": {"x":0,"y":8,"w":6,"h":4},
+      "targets": [{"expr": "axiom_websocket_connections_active", "legendFormat": "Connections"}]
+    },
+    {
+      "id": 4,
+      "title": "Request Rate per Service",
+      "type": "timeseries",
+      "gridPos": {"x":6,"y":8,"w":18,"h":8},
+      "targets": [{"expr": "rate(http_requests_total{namespace=\"axiom-clinical\"}[5m])", "legendFormat": "{{service}}"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    }
+  ]
+}
