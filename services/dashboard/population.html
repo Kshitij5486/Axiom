@@ -405,7 +405,7 @@ function cellColor(val, normal){
 }
 
 // ── BUILD HEATMAP ──
-function buildHeatmap(sortedPatients){
+function buildHeatmap(sortedPatients, animate=false){
   const container = document.getElementById('heatmap-container');
   const W = container.clientWidth;
   const LABEL_W = 90;
@@ -447,11 +447,12 @@ function buildHeatmap(sortedPatients){
     const group = sortedPatients.filter(p=>p.riskCategory===risk);
 
     // Section label
+    const groupCount = group.length;
     svg.append('text')
       .attr('class','risk-section-label')
       .attr('x',4).attr('y',yOff+14)
       .attr('fill',RISK_COLORS[risk])
-      .text(risk==='HIGH'?'HIGH RISK':risk);
+      .text((risk==='HIGH'?'HIGH RISK':risk)+' ('+groupCount+')');
 
     yOff += 20;
 
@@ -468,6 +469,16 @@ function buildHeatmap(sortedPatients){
           .attr('cursor','pointer')
           .attr('data-pt', pt.id)
           .attr('data-var', v.key);
+
+      // Patient name label on left
+      svg.append('text')
+        .attr('x', LABEL_W-4)
+        .attr('y', y + CELL_H/2 + 4)
+        .attr('text-anchor','end')
+        .attr('font-family','Inter Tight,sans-serif')
+        .attr('font-size',9)
+        .attr('fill','rgba(93,64,55,0.45)')
+        .text(pt.name.split(' ')[0]);
 
         rect.on('mouseover', function(event){
           d3.select(this).transition().duration(150).attr('transform',`translate(${x+1+((colW-3)/2)},${y+CELL_H/2}) scale(1.05) translate(${-(x+1+((colW-3)/2))},${-(y+CELL_H/2)})`);
@@ -689,6 +700,22 @@ function buildCohortGraph(){
     d.fx=null; d.fy=null;
   }
 
+  // Edge hover
+  edgeEls
+    .on('mouseover',function(event,d){
+      d3.select(this).transition().duration(150)
+        .attr('stroke-width',d.effectSize*5+2)
+        .attr('stroke-opacity',1);
+      // Show mini tooltip
+      showEdgeTip(event,d);
+    })
+    .on('mouseout',function(event,d){
+      d3.select(this).transition().duration(150)
+        .attr('stroke-width',d.effectSize*5)
+        .attr('stroke-opacity',0.3+d.prevalence*0.7);
+      hideEdgeTip();
+    });
+
   // Store refs
   window._edgeEls=edgeEls;
   window._nodeGrp=nodeGrp;
@@ -747,7 +774,7 @@ function showNodePanel(node, edges){
   const barsDiv=document.getElementById('np-bars');
   barsDiv.innerHTML='<div style="font-family:Inter Tight,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(93,64,55,0.38);margin-bottom:8px">Connections</div>';
   connected.slice(0,6).forEach(e=>{
-    const other=e.source===node.id?e.target:e.source;
+    const _s=(typeof e.source==="object")?e.source.id:e.source; const _t=(typeof e.target==="object")?e.target.id:e.target; const other=_s===node.id?_t:_s;
     const pct=Math.round(e.effectSize*100);
     barsDiv.innerHTML+=`<div class="np-bar-row">
       <div class="np-bar-label">${other}</div>
@@ -758,6 +785,39 @@ function showNodePanel(node, edges){
   document.getElementById('node-panel').classList.add('open');
 }
 function closeNodePanel(){ document.getElementById('node-panel').classList.remove('open'); }
+
+// ── EDGE TOOLTIP ──
+let edgeTipEl = null;
+function showEdgeTip(event, edge){
+  edge = Object.assign({}, edge);
+  edge.source = (typeof edge.source==="object") ? edge.source.id : edge.source;
+  edge.target = (typeof edge.target==="object") ? edge.target.id : edge.target;
+  if(!edgeTipEl){
+    edgeTipEl = document.createElement('div');
+    edgeTipEl.style.cssText='position:fixed;background:white;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.1);border:1px solid rgba(0,73,83,0.1);padding:10px 14px;z-index:600;pointer-events:none;font-family:Albert Sans,sans-serif;font-size:12px;color:#5D4037;min-width:160px;';
+    document.body.appendChild(edgeTipEl);
+  }
+  const dir = edge.direction==='positive'?'↑ Positive':'↓ Negative';
+  const dirColor = edge.direction==='positive'?'#004953':'#C0392B';
+  edgeTipEl.innerHTML = `
+    <div style="font-family:Playfair Display,serif;font-size:12px;font-weight:700;color:#3E2723;margin-bottom:5px">${edge.source} → ${edge.target}</div>
+    <div style="display:flex;justify-content:space-between;gap:12px">
+      <span>Effect</span><strong style="color:var(--brand)">${(edge.effectSize||0).toFixed(2)}</strong>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:12px">
+      <span>Prevalence</span><strong style="color:var(--brand)">${Math.round((edge.prevalence||0)*100)}%</strong>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:12px">
+      <span>Direction</span><strong style="color:${dirColor}">${dir}</strong>
+    </div>
+  `;
+  edgeTipEl.style.display='block';
+  edgeTipEl.style.left=(event.clientX+12)+'px';
+  edgeTipEl.style.top=(event.clientY-10)+'px';
+}
+function hideEdgeTip(){
+  if(edgeTipEl) edgeTipEl.style.display='none';
+}
 
 // ── INIT ──
 window.addEventListener('load',()=>{
