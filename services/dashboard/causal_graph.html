@@ -340,6 +340,7 @@ canvas.addEventListener('wheel', e => {
 // ── NODE & EDGE OBJECTS ──
 let nodeMeshes = [];
 let edgeLines  = [];
+let particles  = [];
 let nodeMap    = {};
 let graphData  = null;
 let physicsRunning = false;
@@ -353,6 +354,7 @@ function buildGraph(data){
   // Clear existing
   nodeMeshes.forEach(m => scene.remove(m));
   edgeLines.forEach(l => scene.remove(l));
+  clearParticles();
   nodeMeshes = []; edgeLines = []; nodeMap = {};
 
   const N = data.nodes.length;
@@ -378,7 +380,7 @@ function buildGraph(data){
     nodeMap[node.id] = mesh;
   });
 
-  // Build edges
+  // Build edges with thickness + particles
   data.edges.forEach(edge => {
     const srcMesh = nodeMap[edge.source];
     const tgtMesh = nodeMap[edge.target];
@@ -391,15 +393,28 @@ function buildGraph(data){
         : new THREE.Color(0xC0392B);
 
     const ciWidth = Math.abs((edge.ci[1]||0) - (edge.ci[0]||0));
-    const opacity = Math.max(0.25, Math.min(0.9, 1 - ciWidth * 2));
+    const opacity = Math.max(0.3, Math.min(0.9, 1 - ciWidth * 2));
 
-    const points = [srcMesh.position.clone(), tgtMesh.position.clone()];
-    const geo = new THREE.BufferGeometry().setFromPoints(points);
-    const mat = new THREE.LineBasicMaterial({color, transparent:true, opacity, linewidth:2});
-    const line = new THREE.Line(geo, mat);
-    line.userData = {edge};
-    scene.add(line);
-    edgeLines.push(line);
+    // Draw multiple parallel lines to simulate thickness
+    const absEffect = Math.abs(edge.effect);
+    const thickness = Math.max(1, Math.min(4, absEffect * 80));
+    const numLines = Math.round(thickness);
+
+    for(let li=0; li<numLines; li++){
+      const offset = (li - (numLines-1)/2) * 0.12;
+      const p1 = srcMesh.position.clone().add(new THREE.Vector3(offset, offset*0.5, 0));
+      const p2 = tgtMesh.position.clone().add(new THREE.Vector3(offset, offset*0.5, 0));
+      const points = [p1, p2];
+      const geo = new THREE.BufferGeometry().setFromPoints(points);
+      const mat = new THREE.LineBasicMaterial({color, transparent:true, opacity: opacity*(li===0?1:0.4)});
+      const line = new THREE.Line(geo, mat);
+      line.userData = {edge, isMain: li===0};
+      scene.add(line);
+      edgeLines.push(line);
+    }
+
+    // Add flowing particle along this edge
+    createParticle(srcMesh.position, tgtMesh.position, color, edge);
   });
 
   graphData = data;
@@ -604,6 +619,41 @@ window.addEventListener('resize', () => {
   renderer.setSize(W, H);
 });
 
+// ── PARTICLE SYSTEM ──
+function createParticle(from, to, color, edge){
+  const geo = new THREE.SphereGeometry(0.25, 8, 8);
+  const mat = new THREE.MeshBasicMaterial({color, transparent:true, opacity:0.85});
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(from);
+  scene.add(mesh);
+  particles.push({
+    mesh, from: from.clone(), to: to.clone(),
+    progress: Math.random(), // stagger start
+    speed: 0.004 + Math.random()*0.003,
+    color, edge
+  });
+}
+
+function updateParticles(){
+  particles.forEach(p => {
+    p.progress += p.speed;
+    if(p.progress > 1) p.progress = 0;
+    // Ease in-out
+    const t = p.progress < 0.5
+      ? 2*p.progress*p.progress
+      : 1-Math.pow(-2*p.progress+2,2)/2;
+    p.mesh.position.lerpVectors(p.from, p.to, t);
+    // Fade at ends
+    const fade = Math.sin(p.progress * Math.PI);
+    p.mesh.material.opacity = fade * 0.9;
+  });
+}
+
+function clearParticles(){
+  particles.forEach(p => scene.remove(p.mesh));
+  particles = [];
+}
+
 // ── RENDER LOOP ──
 function animate(){
   requestAnimationFrame(animate);
@@ -616,6 +666,7 @@ function animate(){
     autoRotate = true;
   }
 
+  updateParticles();
   updateLabelPositions();
   renderer.render(scene, camera);
 }
