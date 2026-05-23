@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AXIOM | Causal Graph Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Albert+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+::selection{background:#004953;color:#F9F7F2}
+:root{
+  --brand:#004953;--brand-sec:#F9F7F2;--brand-acc:#F0ECE6;
+  --tp:#3E2723;--ts:#5D4037;--ton:#F9F7F2;
+  --danger:#C0392B;--warning:#D68910;--success:#1E8449;
+  --r-card:18.8px;--r-btn:117px;
+  --sh-card:0 20px 40px rgba(62,39,35,0.05);
+  --sh-cta:0 10px 30px rgba(0,73,83,0.2);
+  --ease:cubic-bezier(0.16,1,0.3,1);
+}
+html,body{height:100%;overflow:hidden;font-family:'Albert Sans',sans-serif;background:#F9F7F2}
+
+/* NAV */
+#nav{
+  position:fixed;top:12px;left:50%;transform:translateX(-50%);
+  width:calc(100% - 32px);max-width:1500px;height:72px;
+  background:rgba(0,73,83,0.96);backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.1);border-radius:var(--r-btn);
+  display:flex;align-items:center;padding:0 14px;gap:10px;
+  box-shadow:0 20px 60px rgba(0,73,83,0.25);z-index:100;
+}
+.nav-logo{width:46px;height:46px;background:var(--brand-sec);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--brand);cursor:pointer;flex-shrink:0;transition:transform 1s var(--ease)}
+.nav-logo:hover{transform:rotate(360deg)}
+.nav-div{width:1px;height:28px;background:rgba(255,255,255,0.1);flex-shrink:0}
+.nav-title{font-family:'Playfair Display',serif;color:var(--ton);font-size:17px;font-weight:700;letter-spacing:0.18em;flex-shrink:0}
+.nav-back{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--r-btn);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:600;color:rgba(249,247,242,0.7);cursor:pointer;transition:background 0.2s;text-decoration:none;margin-left:12px}
+.nav-back:hover{background:rgba(255,255,255,0.15)}
+.nav-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.nav-doctor{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:var(--r-btn);background:rgba(255,255,255,0.07)}
+.nav-doctor-name{font-family:'Inter Tight',sans-serif;font-size:12px;color:rgba(249,247,242,0.85);font-weight:500}
+.nav-role{font-size:9px;font-weight:700;padding:2px 8px;border-radius:var(--r-btn);background:rgba(249,247,242,0.14);color:var(--ton);letter-spacing:0.1em;text-transform:uppercase}
+.nav-icon-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.07);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(249,247,242,0.65);transition:background 0.2s}
+.nav-icon-btn:hover{background:rgba(255,255,255,0.15)}
+.ws-dot{width:9px;height:9px;border-radius:50%;background:#1E8449;animation:pulseLive 2s infinite;flex-shrink:0}
+@keyframes pulseLive{0%{box-shadow:0 0 0 0 rgba(30,132,73,0.6)}70%{box-shadow:0 0 0 8px rgba(30,132,73,0)}100%{box-shadow:0 0 0 0 rgba(30,132,73,0)}}
+
+/* CANVAS */
+#canvas-wrap{position:fixed;inset:0;top:96px}
+#three-canvas{width:100%;height:100%;display:block}
+
+/* CSS2D LABELS */
+.node-label{
+  font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:600;
+  color:var(--tp);background:rgba(249,247,242,0.92);
+  padding:3px 10px;border-radius:100px;
+  border:0.5px solid rgba(0,73,83,0.15);
+  pointer-events:none;white-space:nowrap;
+  opacity:0;transition:opacity 0.2s;
+}
+.node-label.visible{opacity:1}
+
+/* OVERLAY PANELS */
+.overlay-panel{
+  position:absolute;background:rgba(249,247,242,0.95);
+  backdrop-filter:blur(12px);border:0.5px solid rgba(0,73,83,0.12);
+  border-radius:var(--r-card);box-shadow:var(--sh-card);
+  pointer-events:all;
+}
+
+/* LEFT PANEL - node/path details */
+#left-panel{
+  left:16px;top:16px;width:240px;
+  padding:16px;display:none;
+}
+#left-panel.show{display:block;animation:fadeInLeft 0.4s var(--ease)}
+@keyframes fadeInLeft{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+.panel-title{font-family:'Playfair Display',serif;font-size:14px;font-style:italic;color:var(--tp);margin-bottom:12px}
+.node-type-badge{display:inline-block;padding:2px 10px;border-radius:var(--r-btn);font-family:'Inter Tight',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px}
+.path-row{padding:8px 0;border-bottom:1px solid rgba(0,73,83,0.07)}
+.path-row:last-child{border-bottom:none}
+.path-pills{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:5px}
+.pp{font-family:'Albert Sans',sans-serif;font-size:10px;padding:2px 8px;border-radius:var(--r-btn);background:var(--brand-acc);color:var(--tp)}
+.pp-arr{font-size:10px;color:rgba(93,64,55,0.3)}
+.path-effect{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--brand)}
+.ci-track{height:4px;background:rgba(0,73,83,0.1);border-radius:var(--r-btn);position:relative;margin-top:4px}
+.ci-fill{position:absolute;height:100%;background:var(--brand);border-radius:var(--r-btn)}
+.zk-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:var(--r-btn);font-family:'Inter Tight',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;background:rgba(30,132,73,0.1);color:#1E8449;margin-top:6px}
+
+/* RIGHT PANEL - controls */
+#right-panel{
+  right:16px;top:16px;width:220px;padding:16px;
+}
+.ctrl-label{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.25em;color:rgba(62,39,35,0.38);margin-bottom:10px}
+.legend-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.legend-lbl{font-family:'Albert Sans',sans-serif;font-size:11px;color:var(--ts)}
+.reset-btn{width:100%;background:var(--brand);color:var(--ton);border:none;border-radius:var(--r-btn);padding:9px;font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;cursor:pointer;box-shadow:var(--sh-cta);transition:transform 0.3s var(--ease);margin-top:12px}
+.reset-btn:hover{transform:scale(1.03)}
+.whatif-toggle{width:100%;padding:8px;border-radius:var(--r-btn);border:1.5px solid rgba(0,73,83,0.2);background:var(--brand-acc);color:var(--ts);font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;cursor:pointer;transition:all 0.3s var(--ease);margin-bottom:10px}
+.whatif-toggle.on{background:var(--brand);color:var(--ton);border-color:var(--brand)}
+.drug-select{width:100%;padding:8px 12px;border-radius:var(--r-btn);border:1px solid rgba(0,73,83,0.15);background:white;font-family:'Albert Sans',sans-serif;font-size:12px;color:var(--tp);outline:none;display:none;margin-bottom:8px}
+.drug-select.show{display:block}
+
+/* BOTTOM PANEL - time slider */
+#bottom-panel{
+  bottom:20px;left:50%;transform:translateX(-50%);
+  width:480px;padding:12px 20px;
+  display:flex;align-items:center;gap:14px;
+}
+.play-btn{width:32px;height:32px;border-radius:50%;background:var(--brand);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ton);flex-shrink:0;transition:transform 0.3s var(--ease)}
+.play-btn:hover{transform:scale(1.1)}
+#time-slider{flex:1;-webkit-appearance:none;height:4px;border-radius:4px;background:rgba(0,73,83,0.15);outline:none}
+#time-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--brand);cursor:pointer;transition:transform 0.2s}
+#time-slider::-webkit-slider-thumb:hover{transform:scale(1.3)}
+.time-label{font-family:'Inter Tight',sans-serif;font-size:11px;color:var(--ts);flex-shrink:0;min-width:80px;text-align:right}
+
+/* LOADING */
+#loading{position:absolute;inset:0;background:rgba(249,247,242,0.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:50}
+.loading-logo{width:56px;height:56px;background:var(--brand);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--ton);animation:spin 2s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.loading-txt{font-family:'Playfair Display',serif;font-size:16px;font-style:italic;color:var(--tp)}
+
+/* BOTTOM NAV */
+#bottom-nav{
+  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  background:rgba(0,73,83,0.96);backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.1);border-radius:var(--r-btn);
+  padding:6px;display:flex;gap:4px;box-shadow:var(--sh-cta);z-index:200;
+}
+.bnav-btn{padding:8px 16px;border-radius:var(--r-btn);border:none;cursor:pointer;font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;transition:all 0.3s var(--ease);color:rgba(249,247,242,0.5);background:transparent}
+.bnav-btn:hover{color:var(--ton)}
+.bnav-btn.active{background:var(--brand-sec);color:var(--brand)}
+
+/* PATIENT BADGE */
+#pt-badge{
+  position:absolute;left:50%;transform:translateX(-50%);
+  top:16px;background:rgba(249,247,242,0.95);backdrop-filter:blur(12px);
+  border:0.5px solid rgba(0,73,83,0.12);border-radius:var(--r-btn);
+  padding:8px 20px;display:flex;align-items:center;gap:10px;
+  box-shadow:var(--sh-card);
+}
+.pt-badge-ava{width:32px;height:32px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:var(--ton);flex-shrink:0}
+.pt-badge-name{font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:var(--tp)}
+.pt-badge-sub{font-family:'Albert Sans',sans-serif;font-size:10px;color:rgba(93,64,55,0.55)}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-logo">A</div>
+  <div class="nav-div"></div>
+  <span class="nav-title" style="font-family:'Playfair Display',serif">AXIOM</span>
+  <a href="dashboard.html" class="nav-back"><i class="ph ph-arrow-left" style="font-size:13px"></i> Dashboard</a>
+  <div class="nav-right">
+    <div class="nav-doctor">
+      <span class="nav-doctor-name">Dr. Priya Sharma</span>
+      <span class="nav-role">Physician</span>
+    </div>
+    <button class="nav-icon-btn"><i class="ph ph-bell" style="font-size:18px"></i></button>
+    <div class="ws-dot"></div>
+  </div>
+</nav>
+
+<!-- CANVAS -->
+<div id="canvas-wrap">
+  <div id="loading">
+    <div class="loading-logo">A</div>
+    <div class="loading-txt">Building causal graph…</div>
+  </div>
+  <canvas id="three-canvas"></canvas>
+
+  <!-- PATIENT BADGE -->
+  <div id="pt-badge" class="overlay-panel" style="position:absolute;left:50%;transform:translateX(-50%);top:16px;border-radius:var(--r-btn);padding:8px 20px;display:flex;align-items:center;gap:10px;">
+    <div class="pt-badge-ava" id="pt-ava">AS</div>
+    <div>
+      <div class="pt-badge-name" id="pt-name">Amit Singh</div>
+      <div class="pt-badge-sub" id="pt-sub">Chronic Kidney Disease · Risk: HIGH</div>
+    </div>
+  </div>
+
+  <!-- LEFT PANEL -->
+  <div id="left-panel" class="overlay-panel">
+    <div class="panel-title" id="lp-title">Node Details</div>
+    <div id="lp-badge" class="node-type-badge"></div>
+    <div id="lp-paths"></div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel" class="overlay-panel">
+    <div class="ctrl-label">Graph Controls</div>
+    <button class="whatif-toggle" id="whatif-btn" onclick="toggleWhatIf()">⚡ What If Mode</button>
+    <select class="drug-select" id="drug-select" onchange="applyDrug(this.value)">
+      <option value="">Select intervention…</option>
+      <option value="lisinopril">Increase Lisinopril</option>
+      <option value="furosemide">Add Furosemide</option>
+      <option value="metformin">Increase Metformin</option>
+      <option value="aspirin">Add Aspirin</option>
+      <option value="lifestyle">Lifestyle Counselling</option>
+    </select>
+    <div class="ctrl-label" style="margin-top:8px">Node Types</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#004953"></div><span class="legend-lbl">Conditions</span></div>
+    <div class="legend-row"><div class="legend-dot" style="background:#14b8a6"></div><span class="legend-lbl">Labs / Vitals</span></div>
+    <div class="legend-row"><div class="legend-dot" style="background:#a855f7"></div><span class="legend-lbl">Medications</span></div>
+    <div class="legend-row"><div class="legend-dot" style="background:#D68910"></div><span class="legend-lbl">Demographics</span></div>
+    <div class="legend-row"><div class="legend-dot" style="background:#94a3b8"></div><span class="legend-lbl">Other</span></div>
+    <div class="ctrl-label" style="margin-top:8px">Edge Colours</div>
+    <div class="legend-row"><div style="width:24px;height:3px;background:#004953;border-radius:2px"></div><span class="legend-lbl">Positive effect</span></div>
+    <div class="legend-row"><div style="width:24px;height:3px;background:#C0392B;border-radius:2px"></div><span class="legend-lbl">Negative effect</span></div>
+    <div class="legend-row"><div style="width:24px;height:3px;background:#f97316;border-radius:2px;border:1px dashed #f97316"></div><span class="legend-lbl">NLP derived</span></div>
+    <button class="reset-btn" onclick="resetCamera()">Reset Camera</button>
+  </div>
+
+  <!-- BOTTOM PANEL -->
+  <div id="bottom-panel" class="overlay-panel">
+    <button class="play-btn" id="play-btn" onclick="togglePlay()">
+      <i class="ph-bold ph-play" id="play-icon" style="font-size:13px"></i>
+    </button>
+    <input type="range" id="time-slider" min="0" max="100" value="100">
+    <div class="time-label" id="time-label">Live · Now</div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div id="bottom-nav">
+  <button class="bnav-btn" onclick="location.href='dashboard.html'"><i class="ph ph-squares-four"></i> Dashboard</button>
+  <button class="bnav-btn active"><i class="ph ph-graph"></i> Causal Graph</button>
+  <button class="bnav-btn" onclick="location.href='counterfactual.html'"><i class="ph ph-sliders"></i> Counterfactual</button>
+</div>
+
+<script>
+// ── DEMO DATA (fallback when API offline) ──
+const DEMO_GRAPH = {
+  patient_id: '3319a93d',
+  nodes: [
+    {id:'glucose',     label:'Glucose',      type:'lab',       centrality:1.2},
+    {id:'creatinine',  label:'Creatinine',   type:'lab',       centrality:2.8},
+    {id:'heart_rate',  label:'Heart Rate',   type:'vital',     centrality:1.5},
+    {id:'systolic_bp', label:'Systolic BP',  type:'vital',     centrality:2.2},
+    {id:'spo2',        label:'SpO₂',         type:'vital',     centrality:1.4},
+    {id:'age',         label:'Age',          type:'demographic',centrality:1.8},
+    {id:'furosemide',  label:'Furosemide',   type:'medication', centrality:1.1},
+  ],
+  edges: [
+    {source:'glucose',    target:'creatinine', effect:0.0002,  nlp:false, zk:'a7a292cb', ci:[0.0001,0.0004]},
+    {source:'systolic_bp',target:'creatinine', effect:0.0239,  nlp:false, zk:'a7a292cb', ci:[0.017,0.031]},
+    {source:'systolic_bp',target:'heart_rate', effect:-0.2975, nlp:false, zk:'a7a292cb', ci:[-0.35,-0.24]},
+    {source:'heart_rate', target:'spo2',       effect:0.0209,  nlp:false, zk:'a7a292cb', ci:[0.011,0.031]},
+    {source:'creatinine', target:'spo2',       effect:0.1592,  nlp:false, zk:'a7a292cb', ci:[0.12,0.20]},
+    {source:'glucose',    target:'heart_rate', effect:-0.0261, nlp:false, zk:'a7a292cb', ci:[-0.038,-0.014]},
+    {source:'age',        target:'glucose',    effect:3.044,   nlp:false, zk:'a7a292cb', ci:[2.1,4.0]},
+    {source:'age',        target:'systolic_bp',effect:2.5291,  nlp:false, zk:'a7a292cb', ci:[1.8,3.2]},
+    {source:'furosemide', target:'creatinine', effect:0.0375,  nlp:true,  zk:'79250fc2', ci:[0.020,0.055]},
+  ]
+};
+
+const NODE_COLORS = {
+  condition:   0x004953,
+  lab:         0x14b8a6,
+  medication:  0xa855f7,
+  vital:       0xD68910,
+  demographic: 0x94a3b8,
+  default:     0x004953,
+};
+
+// ── THREE.JS SETUP ──
+const canvas = document.getElementById('three-canvas');
+const wrap   = document.getElementById('canvas-wrap');
+let W = wrap.clientWidth, H = wrap.clientHeight;
+
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+renderer.setSize(W, H);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0xF9F7F2, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xF9F7F2, 80, 200);
+
+const camera = new THREE.PerspectiveCamera(60, W/H, 0.1, 500);
+camera.position.set(0, 0, 80);
+camera.lookAt(0, 0, 0);
+
+// Lights
+const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(50, 50, 50);
+scene.add(dirLight);
+
+// ── ORBIT CONTROLS (manual implementation) ──
+let isDragging = false, isRightDrag = false;
+let prevMouse = {x:0, y:0};
+let spherical = {theta:0, phi:Math.PI/2, r:80};
+let autoRotate = true;
+let lastInteraction = Date.now();
+const AUTO_RESUME = 4000;
+
+function updateCamera(){
+  camera.position.set(
+    spherical.r * Math.sin(spherical.phi) * Math.sin(spherical.theta),
+    spherical.r * Math.cos(spherical.phi),
+    spherical.r * Math.sin(spherical.phi) * Math.cos(spherical.theta)
+  );
+  camera.lookAt(0,0,0);
+}
+
+canvas.addEventListener('mousedown', e => {
+  isDragging = true;
+  isRightDrag = e.button === 2;
+  prevMouse = {x:e.clientX, y:e.clientY};
+  autoRotate = false;
+  lastInteraction = Date.now();
+});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('mouseup', () => { isDragging = false; });
+window.addEventListener('mousemove', e => {
+  if(!isDragging) return;
+  const dx = e.clientX - prevMouse.x;
+  const dy = e.clientY - prevMouse.y;
+  if(!isRightDrag){
+    spherical.theta -= dx * 0.005;
+    spherical.phi   = Math.max(0.1, Math.min(Math.PI-0.1, spherical.phi - dy*0.005));
+  }
+  prevMouse = {x:e.clientX, y:e.clientY};
+  lastInteraction = Date.now();
+  updateCamera();
+});
+canvas.addEventListener('wheel', e => {
+  spherical.r = Math.max(20, Math.min(200, spherical.r + e.deltaY * 0.08));
+  autoRotate = false;
+  lastInteraction = Date.now();
+  updateCamera();
+});
+
+// ── NODE & EDGE OBJECTS ──
+let nodeMeshes = [];
+let edgeLines  = [];
+let nodeMap    = {};
+let graphData  = null;
+let physicsRunning = false;
+let physicsFrame = 0;
+
+function getNodeColor(type){
+  return NODE_COLORS[type] || NODE_COLORS.default;
+}
+
+function buildGraph(data){
+  // Clear existing
+  nodeMeshes.forEach(m => scene.remove(m));
+  edgeLines.forEach(l => scene.remove(l));
+  nodeMeshes = []; edgeLines = []; nodeMap = {};
+
+  const N = data.nodes.length;
+
+  // Place nodes in a sphere arrangement
+  data.nodes.forEach((node, i) => {
+    const phi   = Math.acos(-1 + (2*i)/N);
+    const theta = Math.sqrt(N * Math.PI) * phi;
+    const r = 28;
+    const x = r * Math.cos(theta) * Math.sin(phi);
+    const y = r * Math.sin(theta) * Math.sin(phi);
+    const z = r * Math.cos(phi);
+
+    const radius = 1.2 * (node.centrality || 1);
+    const color  = getNodeColor(node.type);
+    const geo    = new THREE.SphereGeometry(radius, 32, 32);
+    const mat    = new THREE.MeshPhongMaterial({
+      color, shininess:80,
+      emissive: color, emissiveIntensity: 0.12,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    mesh.userData = {node, origColor:color, origScale:1};
+    scene.add(mesh);
+    nodeMeshes.push(mesh);
+    nodeMap[node.id] = mesh;
+  });
+
+  // Build edges
+  data.edges.forEach(edge => {
+    const srcMesh = nodeMap[edge.source];
+    const tgtMesh = nodeMap[edge.target];
+    if(!srcMesh || !tgtMesh) return;
+
+    const color = edge.nlp
+      ? new THREE.Color(0xf97316)
+      : edge.effect >= 0
+        ? new THREE.Color(0x004953)
+        : new THREE.Color(0xC0392B);
+
+    const ciWidth = Math.abs((edge.ci[1]||0) - (edge.ci[0]||0));
+    const opacity = Math.max(0.25, Math.min(0.9, 1 - ciWidth * 2));
+
+    const points = [srcMesh.position.clone(), tgtMesh.position.clone()];
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    const mat = new THREE.LineBasicMaterial({color, transparent:true, opacity, linewidth:2});
+    const line = new THREE.Line(geo, mat);
+    line.userData = {edge};
+    scene.add(line);
+    edgeLines.push(line);
+  });
+
+  graphData = data;
+  document.getElementById('loading').style.display='none';
+}
+
+// ── CSS2D LABELS ──
+const labelRenderer = document.createElement('div');
+labelRenderer.style.cssText='position:absolute;inset:0;pointer-events:none;overflow:hidden';
+wrap.appendChild(labelRenderer);
+
+function createLabel(text){
+  const div = document.createElement('div');
+  div.className = 'node-label';
+  div.textContent = text;
+  labelRenderer.appendChild(div);
+  return div;
+}
+
+// Create labels for all nodes (hidden by default)
+const labels = {};
+function buildLabels(data){
+  Object.values(labels).forEach(l => l.remove());
+  data.nodes.forEach(node => {
+    labels[node.id] = createLabel(node.label);
+  });
+}
+
+function updateLabelPositions(){
+  if(!graphData) return;
+  graphData.nodes.forEach(node => {
+    const mesh = nodeMap[node.id];
+    const lbl  = labels[node.id];
+    if(!mesh || !lbl) return;
+    const pos = mesh.position.clone().project(camera);
+    const x = (pos.x * 0.5 + 0.5) * W;
+    const y = (-pos.y * 0.5 + 0.5) * H;
+    lbl.style.transform = `translate(-50%,-180%) translate(${x}px,${y}px)`;
+    lbl.style.position = 'absolute';
+    lbl.style.left = '0';
+    lbl.style.top  = '0';
+  });
+}
+
+// ── RAYCASTER / HOVER ──
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hoveredNode = null;
+
+canvas.addEventListener('mousemove', e => {
+  if(isDragging) return;
+  const rect = canvas.getBoundingClientRect();
+  mouse.x =  ((e.clientX - rect.left) / W) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top)  / H) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(nodeMeshes);
+
+  // Unhover previous
+  if(hoveredNode){
+    hoveredNode.scale.set(1,1,1);
+    if(labels[hoveredNode.userData.node.id])
+      labels[hoveredNode.userData.node.id].classList.remove('visible');
+    hoveredNode = null;
+    canvas.style.cursor = 'default';
+  }
+
+  if(hits.length > 0){
+    hoveredNode = hits[0].object;
+    hoveredNode.scale.set(1.3,1.3,1.3);
+    const lbl = labels[hoveredNode.userData.node.id];
+    if(lbl) lbl.classList.add('visible');
+    canvas.style.cursor = 'pointer';
+  }
+});
+
+// ── CLICK → SHOW PATH DETAILS ──
+canvas.addEventListener('click', e => {
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(nodeMeshes);
+  if(hits.length > 0){
+    showNodeDetails(hits[0].object.userData.node);
+  } else {
+    document.getElementById('left-panel').classList.remove('show');
+    resetEdgeOpacity();
+  }
+});
+
+function showNodeDetails(node){
+  const panel = document.getElementById('left-panel');
+  panel.classList.add('show');
+  document.getElementById('lp-title').textContent = node.label;
+
+  const badge = document.getElementById('lp-badge');
+  const typeColors = {lab:'#14b8a6',vital:'#D68910',medication:'#a855f7',demographic:'#94a3b8',condition:'#004953'};
+  badge.textContent = node.type || 'variable';
+  badge.style.background = (typeColors[node.type]||'#004953') + '18';
+  badge.style.color = typeColors[node.type] || '#004953';
+
+  // Find connected edges
+  const connected = graphData.edges.filter(e => e.source===node.id || e.target===node.id);
+
+  // Highlight edges
+  edgeLines.forEach(l => {
+    const e = l.userData.edge;
+    const isConn = e.source===node.id || e.target===node.id;
+    l.material.opacity = isConn ? 0.95 : 0.06;
+  });
+
+  // Build path rows
+  const pathsDiv = document.getElementById('lp-paths');
+  pathsDiv.innerHTML = connected.map(e => {
+    const eff = e.effect.toFixed(4);
+    const ciW = Math.abs((e.ci[1]||0)-(e.ci[0]||0));
+    const ciLeft = 20;
+    const ciWidth = Math.max(20, Math.min(70, 100 - ciW*200));
+    return `<div class="path-row">
+      <div class="path-pills">
+        <span class="pp">${e.source}</span>
+        <span class="pp-arr">→</span>
+        <span class="pp">${e.target}</span>
+        ${e.nlp?'<span style="font-size:9px;padding:1px 6px;border-radius:40px;background:rgba(249,115,22,0.1);color:#f97316;font-family:Inter Tight,sans-serif;font-weight:700">NLP</span>':''}
+      </div>
+      <div class="path-effect">${eff > 0 ? '+':''}${eff}</div>
+      <div class="ci-track"><div class="ci-fill" style="left:${ciLeft}%;width:${ciWidth}%"></div></div>
+      <div class="zk-badge"><i class="ph-bold ph-shield-check" style="font-size:11px"></i> ${e.zk ? e.zk.slice(0,8)+'…' : 'pending'}</div>
+    </div>`;
+  }).join('');
+}
+
+function resetEdgeOpacity(){
+  edgeLines.forEach(l => { l.material.opacity = 0.6; });
+}
+
+// ── WHAT IF MODE ──
+let whatIfOn = false;
+function toggleWhatIf(){
+  whatIfOn = !whatIfOn;
+  document.getElementById('whatif-btn').classList.toggle('on', whatIfOn);
+  document.getElementById('drug-select').classList.toggle('show', whatIfOn);
+}
+function applyDrug(drug){
+  if(!drug) return;
+  console.log('What If: apply drug', drug);
+  // Sprint 55 — connect to API
+}
+
+// ── RESET CAMERA ──
+function resetCamera(){
+  spherical = {theta:0, phi:Math.PI/2, r:80};
+  updateCamera();
+}
+
+// ── PLAY / TIME SLIDER ──
+let playing = false;
+let playInterval = null;
+function togglePlay(){
+  playing = !playing;
+  document.getElementById('play-icon').className = playing ? 'ph-bold ph-pause' : 'ph-bold ph-play';
+  if(playing){
+    playInterval = setInterval(()=>{
+      const sl = document.getElementById('time-slider');
+      if(parseInt(sl.value) >= 100){ playing=false; clearInterval(playInterval); return; }
+      sl.value = parseInt(sl.value) + 1;
+    }, 200);
+  } else {
+    clearInterval(playInterval);
+  }
+}
+
+// ── RESIZE ──
+window.addEventListener('resize', () => {
+  W = wrap.clientWidth; H = wrap.clientHeight;
+  camera.aspect = W/H;
+  camera.updateProjectionMatrix();
+  renderer.setSize(W, H);
+});
+
+// ── RENDER LOOP ──
+function animate(){
+  requestAnimationFrame(animate);
+
+  // Auto-rotate
+  if(autoRotate){
+    spherical.theta += 0.003;
+    updateCamera();
+  } else if(Date.now() - lastInteraction > AUTO_RESUME){
+    autoRotate = true;
+  }
+
+  updateLabelPositions();
+  renderer.render(scene, camera);
+}
+
+// ── INIT ──
+// Try to get patient from URL param, fallback to demo
+const urlParams = new URLSearchParams(window.location.search);
+const pid = urlParams.get('patient') || '3319a93d';
+
+async function loadGraph(patientId){
+  try {
+    const res = await fetch(`http://localhost:8081/causal/graph/${patientId}`, {signal: AbortSignal.timeout(4000)});
+    if(!res.ok) throw new Error('API error');
+    const data = await res.json();
+    // Transform API response to our format
+    const nodes = (data.node_list||[]).map(n => ({
+      id: n, label: n.replace(/_/g,' '),
+      type: ['glucose','creatinine','heart_rate','systolic_bp','spo2','hemoglobin'].includes(n) ? 'lab'
+          : ['age','gender_encoded'].includes(n) ? 'demographic' : 'vital',
+      centrality: 1 + Math.random() * 1.5
+    }));
+    const effects = data.effect_sizes || {};
+    const edges = Object.entries(effects).map(([key,val]) => {
+      const [src,tgt] = key.split('->');
+      const eff = typeof val==='object' ? val.effect : val;
+      return {source:src, target:tgt, effect:eff||0, nlp:val?.nlp_source||false, zk:data.zk_integrity_proof||'', ci:[eff*0.7, eff*1.3]};
+    }).filter(e=>e.source&&e.target);
+    buildGraph({patient_id:patientId, nodes, edges});
+    buildLabels({nodes});
+  } catch(err){
+    console.log('API offline, using demo data');
+    buildGraph(DEMO_GRAPH);
+    buildLabels(DEMO_GRAPH);
+  }
+}
+
+loadGraph(pid);
+animate();
+</script>
+</body>
+</html>
