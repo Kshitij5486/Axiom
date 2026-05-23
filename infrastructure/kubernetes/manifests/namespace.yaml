@@ -1,0 +1,7 @@
+﻿apiVersion: v1
+kind: Namespace
+metadata:
+  name: axiom-clinical
+  labels:
+    name: axiom-clinical
+    istio-injection: enabled

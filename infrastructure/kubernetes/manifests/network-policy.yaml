@@ -1,0 +1,26 @@
+﻿apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: axiom-network-policy
+  namespace: axiom-clinical
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: axiom-clinical
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: axiom-clinical
+  - to: []
+    ports:
+    - port: 53
+      protocol: UDP
+    - port: 443
+      protocol: TCP

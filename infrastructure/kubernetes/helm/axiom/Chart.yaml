@@ -1,0 +1,13 @@
+﻿apiVersion: v2
+name: axiom
+description: Axiom Clinical AI Platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - clinical-ai
+  - causal-inference
+  - healthcare
+maintainers:
+  - name: Kshitij Srivastava
+    email: kshitij5486@axiom.health
