@@ -53,12 +53,14 @@ html,body{height:100%;overflow:hidden;font-family:'Albert Sans',sans-serif;backg
 
 /* CSS2D LABELS */
 .node-label{
-  font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:600;
-  color:var(--tp);background:rgba(249,247,242,0.92);
-  padding:3px 10px;border-radius:100px;
-  border:0.5px solid rgba(0,73,83,0.15);
+  font-family:"Inter Tight",sans-serif;font-size:11px;font-weight:600;
+  color:var(--tp);background:rgba(249,247,242,0.95);
+  padding:4px 12px;border-radius:100px;
+  border:0.5px solid rgba(0,73,83,0.18);
   pointer-events:none;white-space:nowrap;
-  opacity:0;transition:opacity 0.2s;
+  opacity:0;transition:opacity 0.25s ease;
+  box-shadow:0 4px 12px rgba(62,39,35,0.08);
+  position:absolute;
 }
 .node-label.visible{opacity:1}
 
@@ -366,11 +368,8 @@ function buildGraph(data){
 
     const radius = 1.2 * (node.centrality || 1);
     const color  = getNodeColor(node.type);
-    const geo    = new THREE.SphereGeometry(radius, 32, 32);
-    const mat    = new THREE.MeshPhongMaterial({
-      color, shininess:80,
-      emissive: color, emissiveIntensity: 0.12,
-    });
+    const geo = new THREE.SphereGeometry(radius, 32, 32);
+    const mat = new THREE.MeshPhongMaterial({color:color, shininess:100, emissive:new THREE.Color(color), emissiveIntensity:0.18});
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(x, y, z);
     mesh.userData = {node, origColor:color, origScale:1};
@@ -461,6 +460,8 @@ canvas.addEventListener('mousemove', e => {
   // Unhover previous
   if(hoveredNode){
     hoveredNode.scale.set(1,1,1);
+    hoveredNode.material.emissiveIntensity = 0.18;
+    if(hoveredNode.children[0]) hoveredNode.children[0].material.opacity = 0.08;
     if(labels[hoveredNode.userData.node.id])
       labels[hoveredNode.userData.node.id].classList.remove('visible');
     hoveredNode = null;
@@ -470,6 +471,9 @@ canvas.addEventListener('mousemove', e => {
   if(hits.length > 0){
     hoveredNode = hits[0].object;
     hoveredNode.scale.set(1.3,1.3,1.3);
+    hoveredNode.material.emissiveIntensity = 0.45;
+    // Brighten glow child
+    if(hoveredNode.children[0]) hoveredNode.children[0].material.opacity = 0.22;
     const lbl = labels[hoveredNode.userData.node.id];
     if(lbl) lbl.classList.add('visible');
     canvas.style.cursor = 'pointer';
@@ -533,6 +537,28 @@ function showNodeDetails(node){
 function resetEdgeOpacity(){
   edgeLines.forEach(l => { l.material.opacity = 0.6; });
 }
+
+// ── DOUBLE CLICK FLY TO ──
+canvas.addEventListener('dblclick', e => {
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(nodeMeshes);
+  if(hits.length > 0){
+    const target = hits[0].object.position.clone();
+    const startPos = camera.position.clone();
+    const endPos = target.clone().add(new THREE.Vector3(0,0,20));
+    let t = 0;
+    const flyInterval = setInterval(()=>{
+      t += 0.04;
+      if(t >= 1){ t = 1; clearInterval(flyInterval); }
+      // Spring easing
+      const ease = 1 - Math.pow(1-t, 3);
+      camera.position.lerpVectors(startPos, endPos, ease);
+      camera.lookAt(target);
+    }, 16);
+    autoRotate = false;
+    lastInteraction = Date.now();
+  }
+});
 
 // ── WHAT IF MODE ──
 let whatIfOn = false;
