@@ -1,0 +1,16 @@
+﻿FROM node:20-slim AS builder
+WORKDIR /build
+COPY services/api-gateway/package*.json ./
+RUN npm ci --only=production
+
+FROM node:20-slim AS runtime
+WORKDIR /app
+RUN groupadd -r axiom && useradd -r -g axiom axiom
+COPY --from=builder /build/node_modules ./node_modules
+COPY services/api-gateway/ .
+RUN chown -R axiom:axiom /app
+USER axiom
+EXPOSE 4000 4001
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:4000/health', r => process.exit(r.statusCode===200?0:1))"
+CMD ["node", "server.js"]

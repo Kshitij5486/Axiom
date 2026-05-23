@@ -1,0 +1,212 @@
+﻿version: '3.9'
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-restart: &default-restart
+  restart: unless-stopped
+
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    <<: *default-restart
+    environment:
+      POSTGRES_DB: axiom
+      POSTGRES_USER: utf8{POSTGRES_USER}
+      POSTGRES_PASSWORD: utf8{POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U utf8{POSTGRES_USER} -d axiom"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [axiom-net]
+    logging: *default-logging
+
+  mongodb:
+    image: mongo:7
+    <<: *default-restart
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: utf8{MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: utf8{MONGO_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [axiom-net]
+    logging: *default-logging
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    <<: *default-restart
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    depends_on: [zookeeper]
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks: [axiom-net]
+    logging: *default-logging
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    <<: *default-restart
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks: [axiom-net]
+    logging: *default-logging
+
+  causal-engine:
+    image: ghcr.io/utf8{GITHUB_REPOSITORY}/causal-engine:utf8{IMAGE_TAG}
+    <<: *default-restart
+    environment:
+      DATABASE_URL: postgresql://utf8{POSTGRES_USER}:utf8{POSTGRES_PASSWORD}@postgres:5432/axiom
+      MONGO_URL: mongodb://utf8{MONGO_USER}:utf8{MONGO_PASSWORD}@mongodb:27017
+      KAFKA_BOOTSTRAP: kafka:9092
+      ZK_SERVICE_URL: http://zk-service:8084
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres: {condition: service_healthy}
+      mongodb: {condition: service_healthy}
+      kafka: {condition: service_started}
+    ports: ["8081:8081"]
+    networks: [axiom-net]
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: {cpus: '1.0', memory: 1G}
+        reservations: {cpus: '0.5', memory: 512M}
+
+  zk-service:
+    image: ghcr.io/utf8{GITHUB_REPOSITORY}/zk-service:utf8{IMAGE_TAG}
+    <<: *default-restart
+    ports: ["8084:8084"]
+    networks: [axiom-net]
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: {cpus: '0.5', memory: 256M}
+        reservations: {cpus: '0.25', memory: 128M}
+
+  federated-service:
+    image: ghcr.io/utf8{GITHUB_REPOSITORY}/federated-service:utf8{IMAGE_TAG}
+    <<: *default-restart
+    environment:
+      CAUSAL_ENGINE_URL: http://causal-engine:8081
+    ports: ["8085:8085"]
+    networks: [axiom-net]
+    logging: *default-logging
+
+  survival-service:
+    image: ghcr.io/utf8{GITHUB_REPOSITORY}/survival-service:utf8{IMAGE_TAG}
+    <<: *default-restart
+    environment:
+      DATABASE_URL: postgresql://utf8{POSTGRES_USER}:utf8{POSTGRES_PASSWORD}@postgres:5432/axiom
+    depends_on:
+      postgres: {condition: service_healthy}
+    ports: ["8082:8082"]
+    networks: [axiom-net]
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: {cpus: '1.0', memory: 2G}
+        reservations: {cpus: '0.5', memory: 1G}
+
+  nlp-service:
+    image: ghcr.io/utf8{GITHUB_REPOSITORY}/nlp-service:utf8{IMAGE_TAG}
+    <<: *default-restart
+    environment:
+      MONGO_URL: mongodb://utf8{MONGO_USER}:utf8{MONGO_PASSWORD}@mongodb:27017
+      CAUSAL_ENGINE_URL: http://causal-engine:8081
+    depends_on:
+      mongodb: {condition: service_healthy}
+    ports: ["8083:8083"]
+    networks: [axiom-net]
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: {cpus: '2.0', memory: 4G}
+        reservations: {cpus: '1.0', memory: 2G}
+
+  api-gateway:
+    image: ghcr.io/utf8{GITHUB_REPOSITORY}/api-gateway:utf8{IMAGE_TAG}
+    <<: *default-restart
+    environment:
+      CAUSAL_ENGINE_URL: http://causal-engine:8081
+      SURVIVAL_URL: http://survival-service:8082
+      NLP_URL: http://nlp-service:8083
+      ZK_URL: http://zk-service:8084
+      FEDERATED_URL: http://federated-service:8085
+      KAFKA_BOOTSTRAP: kafka:9092
+      JWT_SECRET: utf8{JWT_SECRET}
+    depends_on: [causal-engine, survival-service]
+    ports: ["4000:4000", "4001:4001"]
+    networks: [axiom-net]
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: {cpus: '0.5', memory: 512M}
+
+  dashboard:
+    image: ghcr.io/utf8{GITHUB_REPOSITORY}/dashboard:utf8{IMAGE_TAG}
+    <<: *default-restart
+    ports: ["3000:80"]
+    networks: [axiom-net]
+    logging: *default-logging
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    <<: *default-restart
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+    ports: ["9090:9090"]
+    networks: [axiom-net]
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    <<: *default-restart
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: utf8{GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infrastructure/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports: ["3001:3000"]
+    networks: [axiom-net]
+    logging: *default-logging
+
+volumes:
+  postgres_data:
+  mongo_data:
+  kafka_data:
+  zookeeper_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  axiom-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

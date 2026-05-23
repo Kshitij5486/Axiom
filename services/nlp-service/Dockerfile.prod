@@ -1,0 +1,17 @@
+﻿FROM python:3.11-slim AS builder
+WORKDIR /build
+COPY services/nlp-service/requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+FROM python:3.11-slim AS runtime
+WORKDIR /app
+RUN groupadd -r axiom && useradd -r -g axiom axiom
+COPY --from=builder /root/.local /home/axiom/.local
+COPY services/nlp-service/ .
+RUN chown -R axiom:axiom /app
+USER axiom
+ENV PATH=/home/axiom/.local/bin:
+EXPOSE 8083
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8083/health')"
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8083", "--workers", "1"]
