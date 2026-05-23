@@ -299,6 +299,12 @@ html,body{height:100%;overflow:hidden;font-family:'Albert Sans',sans-serif;backg
 
 
 /* ── BELL PANEL ── */
+/* BOTTOM NAV */
+#bottom-nav-dash{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,73,83,0.96);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:var(--r-btn);padding:6px;display:flex;gap:4px;box-shadow:var(--sh-cta);z-index:200}
+.bnav-btn{padding:8px 16px;border-radius:var(--r-btn);border:none;cursor:pointer;font-family:"Inter Tight",sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;transition:all 0.3s var(--ease);color:rgba(249,247,242,0.5);background:transparent}
+.bnav-btn:hover{color:rgba(249,247,242,1)}
+.bnav-btn.active{background:var(--brand-sec);color:var(--brand)}
+
 #bell-panel{
   position:fixed;top:90px;right:calc((100% - min(1500px, calc(100% - 32px)))/2 + 14px);
   width:320px;background:var(--surface);border-radius:20px;
@@ -834,5 +840,10 @@ function wireBanner(){}
 
 wireBanner();
 </script>
+<div id="bottom-nav-dash">
+  <button class="bnav-btn active"><i class="ph ph-squares-four"></i> Dashboard</button>
+  <button class="bnav-btn" onclick="location.href='causal_graph.html'"><i class="ph ph-graph"></i> Causal Graph</button>
+  <button class="bnav-btn" onclick="location.href='counterfactual.html'"><i class="ph ph-sliders"></i> Counterfactual</button>
+</div>
 </body>
 </html>

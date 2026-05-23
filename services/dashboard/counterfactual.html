@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AXIOM | Counterfactual Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Albert+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+::selection{background:#004953;color:#F9F7F2}
+:root{
+  --brand:#004953;--brand-sec:#F9F7F2;--brand-acc:#F0ECE6;
+  --tp:#3E2723;--ts:#5D4037;--ton:#F9F7F2;
+  --danger:#C0392B;--warning:#D68910;--success:#1E8449;
+  --r-card:18.8px;--r-btn:117px;
+  --sh-card:0 20px 40px rgba(62,39,35,0.05);
+  --sh-cta:0 10px 30px rgba(0,73,83,0.2);
+  --ease:cubic-bezier(0.16,1,0.3,1);
+}
+html,body{height:100%;font-family:'Albert Sans',sans-serif;background:var(--brand-sec);color:var(--ts);overflow-x:hidden}
+
+/* NAV */
+#nav{position:fixed;top:12px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:1500px;height:72px;background:rgba(0,73,83,0.96);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:var(--r-btn);display:flex;align-items:center;padding:0 14px;gap:10px;box-shadow:0 20px 60px rgba(0,73,83,0.25);z-index:100}
+.nav-logo{width:46px;height:46px;background:var(--brand-sec);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--brand);cursor:pointer;flex-shrink:0;transition:transform 1s var(--ease)}
+.nav-logo:hover{transform:rotate(360deg)}
+.nav-div{width:1px;height:28px;background:rgba(255,255,255,0.1);flex-shrink:0}
+.nav-title{font-family:'Playfair Display',serif;color:var(--ton);font-size:17px;font-weight:700;letter-spacing:0.18em}
+.nav-back{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--r-btn);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:600;color:rgba(249,247,242,0.7);cursor:pointer;transition:background 0.2s;text-decoration:none;margin-left:12px}
+.nav-back:hover{background:rgba(255,255,255,0.15)}
+.nav-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.nav-doctor{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:var(--r-btn);background:rgba(255,255,255,0.07)}
+.nav-doctor-name{font-family:'Inter Tight',sans-serif;font-size:12px;color:rgba(249,247,242,0.85);font-weight:500}
+.nav-role{font-size:9px;font-weight:700;padding:2px 8px;border-radius:var(--r-btn);background:rgba(249,247,242,0.14);color:var(--ton);letter-spacing:0.1em;text-transform:uppercase}
+.ws-dot{width:9px;height:9px;border-radius:50%;background:#1E8449;animation:pulseLive 2s infinite;flex-shrink:0}
+@keyframes pulseLive{0%{box-shadow:0 0 0 0 rgba(30,132,73,0.6)}70%{box-shadow:0 0 0 8px rgba(30,132,73,0)}100%{box-shadow:0 0 0 0 rgba(30,132,73,0)}}
+
+/* LAYOUT */
+#main{padding-top:96px;padding-bottom:80px;min-height:100vh}
+
+/* CONTROL BAR */
+#ctrl-bar{background:white;border-bottom:1px solid rgba(0,73,83,0.08);padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.pt-mini{display:flex;align-items:center;gap:10px}
+.pt-mini-ava{width:36px;height:36px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--ton);flex-shrink:0}
+.pt-mini-name{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--tp)}
+.pt-mini-diag{font-family:'Albert Sans',sans-serif;font-size:11px;color:rgba(93,64,55,0.55)}
+.ctrl-sep{width:1px;height:32px;background:rgba(0,73,83,0.1);flex-shrink:0}
+.drug-label{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(93,64,55,0.4)}
+#drug-select{padding:8px 14px;border-radius:var(--r-btn);border:1px solid rgba(0,73,83,0.15);background:var(--brand-sec);font-family:'Albert Sans',sans-serif;font-size:13px;color:var(--tp);outline:none;cursor:pointer;transition:border-color 0.2s}
+#drug-select:focus{border-color:var(--brand)}
+.run-btn{background:var(--brand);color:var(--ton);border:none;border-radius:var(--r-btn);padding:9px 20px;font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;cursor:pointer;box-shadow:var(--sh-cta);transition:transform 0.3s var(--ease);margin-left:auto}
+.run-btn:hover{transform:scale(1.04)}
+
+/* SPLIT SCREEN */
+#split{display:grid;grid-template-columns:1fr 4px 1fr;border-top:1px solid rgba(0,73,83,0.06);min-height:60vh}
+.half{padding:20px}
+.half-hdr{background:rgba(240,236,230,0.6);margin:-20px -20px 16px;padding:10px 20px;border-bottom:1px solid rgba(0,73,83,0.06);display:flex;align-items:center;gap:8px}
+.half-label{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.28em;color:rgba(93,64,55,0.45)}
+.half-label.sim{color:var(--brand)}
+.half-divider{width:4px;background:rgba(0,73,83,0.08)}
+
+/* SLIDER SECTION */
+.sliders-wrap{background:white;border-radius:var(--r-card);box-shadow:var(--sh-card);border:1px solid rgba(0,73,83,0.05);padding:16px;margin-bottom:16px}
+.slider-row{margin-bottom:14px}
+.slider-row:last-child{margin-bottom:0}
+.slider-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.slider-name{font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:600;color:var(--tp);text-transform:uppercase;letter-spacing:0.15em}
+.slider-val{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--brand)}
+.slider-unit{font-family:'Albert Sans',sans-serif;font-size:10px;color:rgba(93,64,55,0.4);margin-left:3px}
+input[type=range].cf-slider{width:100%;-webkit-appearance:none;height:4px;border-radius:4px;background:rgba(0,73,83,0.12);outline:none}
+input[type=range].cf-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--brand);cursor:pointer;box-shadow:0 2px 8px rgba(0,73,83,0.3);transition:transform 0.2s}
+input[type=range].cf-slider::-webkit-slider-thumb:hover{transform:scale(1.3)}
+
+/* METRIC CARDS */
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.metric-card{background:white;border-radius:var(--r-card);box-shadow:var(--sh-card);border:1px solid rgba(0,73,83,0.05);padding:14px;transition:border-color 0.4s}
+.metric-card.changed{border-color:var(--brand)}
+.metric-label{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.22em;color:rgba(62,39,35,0.38);margin-bottom:6px}
+.metric-val{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--tp);transition:color 0.4s}
+.metric-val.better{color:var(--success)}
+.metric-val.worse{color:var(--danger)}
+.metric-unit{font-family:'Albert Sans',sans-serif;font-size:11px;color:rgba(93,64,55,0.38)}
+.metric-delta{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:var(--r-btn);font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;margin-top:5px}
+.metric-delta.pos{background:rgba(30,132,73,0.1);color:var(--success)}
+.metric-delta.neg{background:rgba(192,57,43,0.1);color:var(--danger)}
+
+/* SURVIVAL CURVES */
+.survival-wrap{background:white;border-radius:var(--r-card);box-shadow:var(--sh-card);border:1px solid rgba(0,73,83,0.05);padding:16px}
+.section-title{font-family:'Playfair Display',serif;font-size:14px;font-style:italic;color:var(--tp);margin-bottom:12px}
+#survival-chart{width:100%;display:block}
+
+/* VIOLIN */
+#violin-section{background:white;border-top:1px solid rgba(0,73,83,0.06);padding:24px}
+.violin-title{font-family:'Playfair Display',serif;font-size:16px;font-style:italic;color:var(--tp);margin-bottom:16px}
+#violin-chart{width:100%;display:block}
+
+/* SIDE EFFECTS */
+#side-effects{background:white;border-top:1px solid rgba(0,73,83,0.06);padding:20px;display:none}
+#side-effects.show{display:block}
+.se-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.se-dot{width:8px;height:8px;border-radius:50%;background:var(--warning);flex-shrink:0}
+.se-title{font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.25em;color:var(--warning)}
+.se-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(0,73,83,0.05)}
+.se-row:last-child{border-bottom:none}
+.se-path{display:flex;align-items:center;gap:4px}
+.se-pill{font-family:'Albert Sans',sans-serif;font-size:10px;padding:2px 8px;border-radius:var(--r-btn);background:rgba(214,137,16,0.1);color:var(--warning);border:1px solid rgba(214,137,16,0.2)}
+.se-arr{font-size:10px;color:rgba(93,64,55,0.3)}
+.se-effect{font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:600;color:var(--warning)}
+
+/* BOTTOM NAV */
+#bottom-nav{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,73,83,0.96);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:var(--r-btn);padding:6px;display:flex;gap:4px;box-shadow:var(--sh-cta);z-index:200}
+.bnav-btn{padding:8px 16px;border-radius:var(--r-btn);border:none;cursor:pointer;font-family:'Inter Tight',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;transition:all 0.3s var(--ease);color:rgba(249,247,242,0.5);background:transparent}
+.bnav-btn:hover{color:var(--ton)}
+.bnav-btn.active{background:var(--brand-sec);color:var(--brand)}
+
+/* LOADING SKELETON */
+.skeleton{background:linear-gradient(90deg,var(--brand-acc) 25%,rgba(249,247,242,0.8) 50%,var(--brand-acc) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--r-card)}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-logo">A</div>
+  <div class="nav-div"></div>
+  <span class="nav-title" style="font-family:'Playfair Display',serif">AXIOM</span>
+  <a href="dashboard.html" class="nav-back"><i class="ph ph-arrow-left" style="font-size:13px"></i> Dashboard</a>
+  <div class="nav-right">
+    <div class="nav-doctor">
+      <span class="nav-doctor-name">Dr. Priya Sharma</span>
+      <span class="nav-role">Physician</span>
+    </div>
+    <button style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.07);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(249,247,242,0.65)">
+      <i class="ph ph-bell" style="font-size:18px"></i>
+    </button>
+    <div class="ws-dot"></div>
+  </div>
+</nav>
+
+<div id="main">
+  <!-- CONTROL BAR -->
+  <div id="ctrl-bar">
+    <div class="pt-mini">
+      <div class="pt-mini-ava">AS</div>
+      <div>
+        <div class="pt-mini-name">Amit Singh</div>
+        <div class="pt-mini-diag">Chronic Kidney Disease · Risk: HIGH</div>
+      </div>
+    </div>
+    <div class="ctrl-sep"></div>
+    <div class="drug-label">Intervention</div>
+    <select id="drug-select" onchange="selectDrug(this.value)">
+      <option value="">Select drug…</option>
+      <option value="lisinopril" selected>Increase Lisinopril (−10 mmHg SBP)</option>
+      <option value="furosemide">Add Furosemide (−0.2 creatinine)</option>
+      <option value="metformin">Increase Metformin (−20 mg/dL glucose)</option>
+      <option value="aspirin">Add Aspirin (−3 bpm HR)</option>
+      <option value="lifestyle">Lifestyle Counselling</option>
+    </select>
+    <button class="run-btn" onclick="runSimulation()">
+      <i class="ph-bold ph-play" style="font-size:12px;margin-right:6px"></i>Run Simulation
+    </button>
+  </div>
+
+  <!-- SPLIT SCREEN -->
+  <div id="split">
+    <!-- LEFT: CURRENT STATE -->
+    <div class="half" id="left-half">
+      <div class="half-hdr">
+        <div class="half-label">Current State</div>
+      </div>
+
+      <!-- SLIDERS -->
+      <div class="sliders-wrap">
+        <div style="font-family:'Inter Tight',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.22em;color:rgba(62,39,35,0.38);margin-bottom:12px">Adjust Intervention Magnitude</div>
+        <div class="slider-row">
+          <div class="slider-top">
+            <span class="slider-name">Systolic BP reduction</span>
+            <span><span class="slider-val" id="sbp-val">10</span><span class="slider-unit">mmHg</span></span>
+          </div>
+          <input type="range" class="cf-slider" min="0" max="30" value="10" id="sbp-slider" oninput="updateSlider('sbp',this.value)">
+        </div>
+        <div class="slider-row">
+          <div class="slider-top">
+            <span class="slider-name">Glucose reduction</span>
+            <span><span class="slider-val" id="glu-val">20</span><span class="slider-unit">mg/dL</span></span>
+          </div>
+          <input type="range" class="cf-slider" min="0" max="80" value="20" id="glu-slider" oninput="updateSlider('glu',this.value)">
+        </div>
+        <div class="slider-row">
+          <div class="slider-top">
+            <span class="slider-name">HR reduction</span>
+            <span><span class="slider-val" id="hr-val">5</span><span class="slider-unit">bpm</span></span>
+          </div>
+          <input type="range" class="cf-slider" min="0" max="20" value="5" id="hr-slider" oninput="updateSlider('hr',this.value)">
+        </div>
+      </div>
+
+      <!-- CURRENT METRICS -->
+      <div class="metrics-grid" id="current-metrics">
+        <div class="metric-card">
+          <div class="metric-label">Creatinine</div>
+          <div class="metric-val" id="cur-creatinine">3.11</div>
+          <div class="metric-unit">mg/dL</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Systolic BP</div>
+          <div class="metric-val" id="cur-sbp">147</div>
+          <div class="metric-unit">mmHg</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Glucose</div>
+          <div class="metric-val" id="cur-glucose">177</div>
+          <div class="metric-unit">mg/dL</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Heart Rate</div>
+          <div class="metric-val" id="cur-hr">77</div>
+          <div class="metric-unit">bpm</div>
+        </div>
+      </div>
+
+      <!-- SURVIVAL CURVE -->
+      <div class="survival-wrap">
+        <div class="section-title">Survival curve — current</div>
+        <svg id="survival-chart" height="120"></svg>
+      </div>
+    </div>
+
+    <div class="half-divider"></div>
+
+    <!-- RIGHT: SIMULATED STATE -->
+    <div class="half" id="right-half">
+      <div class="half-hdr">
+        <div class="half-label sim" id="sim-label">Simulated — Select intervention</div>
+      </div>
+
+      <!-- SKELETON while loading -->
+      <div id="sim-skeleton" style="height:200px;margin-bottom:16px;border-radius:18px" class="skeleton"></div>
+
+      <!-- SIMULATED METRICS -->
+      <div class="metrics-grid" id="sim-metrics" style="display:none">
+        <div class="metric-card changed">
+          <div class="metric-label">Creatinine</div>
+          <div class="metric-val better" id="sim-creatinine">—</div>
+          <div class="metric-unit">mg/dL</div>
+          <div class="metric-delta pos" id="delta-creatinine"></div>
+        </div>
+        <div class="metric-card changed">
+          <div class="metric-label">Systolic BP</div>
+          <div class="metric-val better" id="sim-sbp">—</div>
+          <div class="metric-unit">mmHg</div>
+          <div class="metric-delta pos" id="delta-sbp"></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Glucose</div>
+          <div class="metric-val" id="sim-glucose">—</div>
+          <div class="metric-unit">mg/dL</div>
+          <div class="metric-delta" id="delta-glucose"></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Heart Rate</div>
+          <div class="metric-val" id="sim-hr">—</div>
+          <div class="metric-unit">bpm</div>
+          <div class="metric-delta" id="delta-hr"></div>
+        </div>
+      </div>
+
+      <!-- SIMULATED SURVIVAL -->
+      <div class="survival-wrap" id="sim-survival" style="display:none">
+        <div class="section-title">Survival curve — after intervention</div>
+        <svg id="survival-chart-sim" height="120"></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIOLIN PLOT -->
+  <div id="violin-section">
+    <div class="violin-title">Outcome distribution — 1,000 Monte Carlo samples</div>
+    <svg id="violin-chart" height="160"></svg>
+  </div>
+
+  <!-- SIDE EFFECTS -->
+  <div id="side-effects">
+    <div class="se-header">
+      <div class="se-dot"></div>
+      <div class="se-title">Causal Side Effects</div>
+    </div>
+    <div id="se-rows"></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div id="bottom-nav">
+  <button class="bnav-btn" onclick="location.href='dashboard.html'"><i class="ph ph-squares-four"></i> Dashboard</button>
+  <button class="bnav-btn" onclick="location.href='causal_graph.html'"><i class="ph ph-graph"></i> Causal Graph</button>
+  <button class="bnav-btn active"><i class="ph ph-sliders"></i> Counterfactual</button>
+</div>
+
+<script>
+// ── DEMO DATA ──
+const CURRENT = {creatinine:3.11, sbp:147, glucose:177, hr:77};
+const SURVIVAL_CURRENT = [1.0, 0.822, 0.620, 0.431, 0.310, 0.192, 0.120, 0.050];
+const TIME_POINTS = [0,30,60,90,120,180,270,365];
+
+// Drug effects on each outcome
+const DRUG_EFFECTS = {
+  lisinopril: {creatinine:-0.024, sbp:-10.2, glucose:0, hr:-2.1, sideEffects:[{chain:['Lisinopril','Potassium','Kidney function'],effect:'+0.012 creatinine (mild)'}]},
+  furosemide: {creatinine:-0.037, sbp:-8.1, glucose:0, hr:1.5, sideEffects:[{chain:['Furosemide','Electrolytes','HR'],effect:'+1.5 bpm'}]},
+  metformin:  {creatinine:0.002, sbp:-1.2, glucose:-18.5, hr:-0.8, sideEffects:[]},
+  aspirin:    {creatinine:0.001, sbp:-2.1, glucose:0, hr:-3.2, sideEffects:[]},
+  lifestyle:  {creatinine:-0.008, sbp:-5.5, glucose:-12.0, hr:-4.5, sideEffects:[]},
+};
+
+let selectedDrug = 'lisinopril';
+let sliderVals = {sbp:10, glu:20, hr:5};
+let simulated = false;
+
+// ── SLIDERS ──
+function updateSlider(key, val){
+  document.getElementById(key+'-val').textContent = val;
+  sliderVals[key] = parseFloat(val);
+  if(simulated) runSimulation();
+}
+
+// ── SELECT DRUG ──
+function selectDrug(drug){
+  selectedDrug = drug;
+  if(drug){
+    document.getElementById('sim-label').textContent =
+      'Simulated — ' + document.getElementById('drug-select').selectedOptions[0].text.split(' (')[0];
+  }
+}
+
+// ── RUN SIMULATION ──
+function runSimulation(){
+  if(!selectedDrug){ alert('Select an intervention first'); return; }
+  simulated = true;
+
+  // Show skeleton
+  document.getElementById('sim-skeleton').style.display='block';
+  document.getElementById('sim-metrics').style.display='none';
+  document.getElementById('sim-survival').style.display='none';
+
+  // Simulate API delay
+  setTimeout(()=>{
+    const fx = DRUG_EFFECTS[selectedDrug] || DRUG_EFFECTS.lisinopril;
+    const sbpMag = sliderVals.sbp / 10;
+    const gluMag = sliderVals.glu / 20;
+    const hrMag  = sliderVals.hr  / 5;
+
+    const simVals = {
+      creatinine: +(CURRENT.creatinine + fx.creatinine * sbpMag).toFixed(2),
+      sbp:        +(CURRENT.sbp        + fx.sbp        * sbpMag).toFixed(1),
+      glucose:    +(CURRENT.glucose    + fx.glucose     * gluMag).toFixed(1),
+      hr:         +(CURRENT.hr         + fx.hr          * hrMag).toFixed(1),
+    };
+
+    // Update sim metrics
+    document.getElementById('sim-skeleton').style.display='none';
+    document.getElementById('sim-metrics').style.display='grid';
+    document.getElementById('sim-survival').style.display='block';
+
+    ['creatinine','sbp','glucose','hr'].forEach(key => {
+      const curKey = key==='sbp'?'sbp':key;
+      const simEl = document.getElementById('sim-'+curKey);
+      const deltaEl = document.getElementById('delta-'+curKey);
+      const cur = CURRENT[curKey];
+      const sim = simVals[curKey];
+      const delta = sim - cur;
+      // Animate count up
+      animateCount(simEl, cur, sim, 800);
+      const better = (curKey==='creatinine'||curKey==='sbp'||curKey==='glucose'||curKey==='hr') ? delta<0 : delta>0;
+      simEl.className = 'metric-val ' + (better?'better':'worse');
+      deltaEl.textContent = (delta>0?'+':'')+delta.toFixed(2);
+      deltaEl.className = 'metric-delta ' + (better?'pos':'neg');
+    });
+
+    // Draw simulated survival
+    const survivalSim = SURVIVAL_CURRENT.map((s,i)=>Math.min(1,s + 0.05*sbpMag*(1-i/8)));
+    drawSurvivalChart('survival-chart-sim', survivalSim, '#1E8449');
+
+    // Violin plot
+    drawViolin(simVals.creatinine);
+
+    // Side effects
+    showSideEffects(fx.sideEffects);
+
+    document.getElementById('sim-label').style.color='var(--success)';
+  }, 800);
+}
+
+// ── ANIMATE COUNT ──
+function animateCount(el, from, to, duration){
+  const start = performance.now();
+  const update = (now) => {
+    const t = Math.min(1,(now-start)/duration);
+    const ease = 1-Math.pow(1-t,3);
+    el.textContent = (from + (to-from)*ease).toFixed(2);
+    if(t<1) requestAnimationFrame(update);
+    else el.textContent = to.toFixed(2);
+  };
+  requestAnimationFrame(update);
+}
+
+// ── SURVIVAL CHART ──
+function drawSurvivalChart(svgId, data, color){
+  const svgEl = document.getElementById(svgId);
+  const W = svgEl.parentElement.clientWidth - 32;
+  const H = 120;
+  svgEl.setAttribute('width', W);
+  const svg = d3.select('#'+svgId);
+  svg.selectAll('*').remove();
+
+  const x = d3.scaleLinear().domain([0,365]).range([30,W-10]);
+  const y = d3.scaleLinear().domain([0,1]).range([H-20,10]);
+
+  const defs = svg.append('defs');
+  const grad = defs.append('linearGradient').attr('id','sg-'+svgId).attr('x1',0).attr('x2',0).attr('y1',0).attr('y2',1);
+  grad.append('stop').attr('offset','0%').attr('stop-color',color).attr('stop-opacity',0.2);
+  grad.append('stop').attr('offset','100%').attr('stop-color',color).attr('stop-opacity',0);
+
+  // Normal range band
+  svg.append('rect').attr('x',30).attr('y',y(0.95)).attr('width',W-40).attr('height',y(0.5)-y(0.95)).attr('fill','rgba(0,73,83,0.04)');
+
+  const area = d3.area().x((_,i)=>x(TIME_POINTS[i])).y0(H-20).y1(d=>y(d)).curve(d3.curveCatmullRom);
+  const line = d3.line().x((_,i)=>x(TIME_POINTS[i])).y(d=>y(d)).curve(d3.curveCatmullRom);
+
+  svg.append('path').datum(data).attr('d',area).attr('fill','url(#sg-'+svgId+')');
+  svg.append('path').datum(data).attr('d',line).attr('fill','none').attr('stroke',color).attr('stroke-width',2.5);
+
+  // X axis ticks
+  [0,90,180,365].forEach(t=>{
+    svg.append('text').attr('x',x(t)).attr('y',H-4).attr('text-anchor','middle').attr('font-family','Inter Tight,sans-serif').attr('font-size',9).attr('fill','rgba(93,64,55,0.4)').text(t+'d');
+  });
+  // Y axis
+  [0.5,1.0].forEach(v=>{
+    svg.append('text').attr('x',26).attr('y',y(v)+4).attr('text-anchor','end').attr('font-family','Inter Tight,sans-serif').attr('font-size',9).attr('fill','rgba(93,64,55,0.4)').text((v*100)+'%');
+  });
+}
+
+// ── VIOLIN PLOT ──
+function drawViolin(simCreatinine){
+  const svgEl = document.getElementById('violin-chart');
+  const W = svgEl.parentElement.clientWidth - 48;
+  const H = 160;
+  svgEl.setAttribute('width',W);
+  const svg = d3.select('#violin-chart');
+  svg.selectAll('*').remove();
+
+  // Generate KDE samples around current and simulated
+  const curMean = CURRENT.creatinine;
+  const simMean = simCreatinine;
+  const std = 0.18;
+
+  function kde(mean, n=200){
+    return Array.from({length:n},()=>{
+      let u=0,v=0;
+      while(u===0)u=Math.random();
+      while(v===0)v=Math.random();
+      return mean + std * Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+    });
+  }
+
+  const curSamples = kde(curMean);
+  const simSamples = kde(simMean);
+
+  const allVals = [...curSamples, ...simSamples];
+  const x = d3.scaleLinear().domain([d3.min(allVals)-0.2, d3.max(allVals)+0.2]).range([40,W-20]);
+
+  // KDE estimator
+  function kernelDensity(kernel, thresholds, data){
+    return thresholds.map(x=>([x, d3.mean(data, v=>kernel(x-v))]));
+  }
+  function epanechnikov(bw){ return v => Math.abs(v/=bw)<=1 ? 0.75*(1-v*v)/bw : 0; }
+
+  const thresholds = d3.range(x.domain()[0], x.domain()[1], 0.05);
+  const density1 = kernelDensity(epanechnikov(0.15), thresholds, curSamples);
+  const density2 = kernelDensity(epanechnikov(0.15), thresholds, simSamples);
+
+  const maxD = Math.max(d3.max(density1,d=>d[1]), d3.max(density2,d=>d[1]));
+  const yScale = d3.scaleLinear().domain([0,maxD]).range([0,55]);
+  const cy = 80;
+
+  // Draw violin for current (top half)
+  const areaTop = d3.area().x(d=>x(d[0])).y0(cy).y1(d=>cy-yScale(d[1])).curve(d3.curveCatmullRom);
+  const areaBot = d3.area().x(d=>x(d[0])).y0(cy).y1(d=>cy+yScale(d[1])).curve(d3.curveCatmullRom);
+
+  svg.append('path').datum(density1).attr('d',areaTop).attr('fill','rgba(0,73,83,0.12)').attr('stroke','#004953').attr('stroke-width',1.5);
+  svg.append('path').datum(density1).attr('d',areaBot).attr('fill','rgba(0,73,83,0.12)').attr('stroke','#004953').attr('stroke-width',1.5);
+
+  // Simulated overlay
+  svg.append('path').datum(density2).attr('d',areaTop).attr('fill','rgba(30,132,73,0.1)').attr('stroke','#1E8449').attr('stroke-width',1.5).attr('stroke-dasharray','4,2');
+  svg.append('path').datum(density2).attr('d',areaBot).attr('fill','rgba(30,132,73,0.1)').attr('stroke','#1E8449').attr('stroke-width',1.5).attr('stroke-dasharray','4,2');
+
+  // Current value line
+  svg.append('line').attr('x1',x(curMean)).attr('x2',x(curMean)).attr('y1',cy-60).attr('y2',cy+60).attr('stroke','#D68910').attr('stroke-width',1.5).attr('stroke-dasharray','4,3');
+  svg.append('text').attr('x',x(curMean)).attr('y',cy-64).attr('text-anchor','middle').attr('font-family','Inter Tight,sans-serif').attr('font-size',9).attr('fill','#D68910').text('Current');
+
+  // Simulated value line
+  svg.append('line').attr('x1',x(simMean)).attr('x2',x(simMean)).attr('y1',cy-60).attr('y2',cy+60).attr('stroke','#1E8449').attr('stroke-width',1.5).attr('stroke-dasharray','4,3');
+  svg.append('text').attr('x',x(simMean)).attr('y',cy-64).attr('text-anchor','middle').attr('font-family','Inter Tight,sans-serif').attr('font-size',9).attr('fill','#1E8449').text('Simulated');
+
+  // X axis
+  svg.append('line').attr('x1',40).attr('x2',W-20).attr('y1',cy).attr('y2',cy).attr('stroke','rgba(93,64,55,0.15)').attr('stroke-width',1);
+  [curMean-0.4, curMean, curMean+0.4].forEach(v=>{
+    svg.append('text').attr('x',x(v)).attr('y',cy+70).attr('text-anchor','middle').attr('font-family','Inter Tight,sans-serif').attr('font-size',9).attr('fill','rgba(93,64,55,0.4)').text(v.toFixed(1));
+  });
+
+  // Legend
+  svg.append('circle').attr('cx',50).attr('cy',H-12).attr('r',4).attr('fill','rgba(0,73,83,0.5)');
+  svg.append('text').attr('x',60).attr('y',H-8).attr('font-family','Inter Tight,sans-serif').attr('font-size',9).attr('fill','rgba(93,64,55,0.6)').text('Current distribution');
+  svg.append('circle').attr('cx',200).attr('cy',H-12).attr('r',4).attr('fill','rgba(30,132,73,0.6)');
+  svg.append('text').attr('x',210).attr('y',H-8).attr('font-family','Inter Tight,sans-serif').attr('font-size',9).attr('fill','rgba(93,64,55,0.6)').text('Simulated distribution');
+}
+
+// ── SIDE EFFECTS ──
+function showSideEffects(effects){
+  const section = document.getElementById('side-effects');
+  const rows = document.getElementById('se-rows');
+  if(!effects || effects.length===0){
+    section.classList.remove('show');
+    return;
+  }
+  section.classList.add('show');
+  rows.innerHTML = effects.map(se=>`
+    <div class="se-row">
+      <div class="se-path">
+        ${se.chain.map((n,i)=>`<span class="se-pill">${n}</span>${i<se.chain.length-1?'<span class="se-arr">→</span>':''}`).join('')}
+      </div>
+      <div class="se-effect">${se.effect}</div>
+    </div>`).join('');
+}
+
+// ── INIT ──
+window.addEventListener('load',()=>{
+  // Draw initial survival curve
+  drawSurvivalChart('survival-chart', SURVIVAL_CURRENT, '#004953');
+  // Initial violin
+  drawViolin(CURRENT.creatinine - 0.024);
+  // Pre-select lisinopril and run
+  document.getElementById('drug-select').value = 'lisinopril';
+  selectDrug('lisinopril');
+  runSimulation();
+});
+
+window.addEventListener('resize',()=>{
+  drawSurvivalChart('survival-chart', SURVIVAL_CURRENT, '#004953');
+  if(simulated){
+    const survivalSim = SURVIVAL_CURRENT.map((s,i)=>Math.min(1,s+0.04*(1-i/8)));
+    drawSurvivalChart('survival-chart-sim', survivalSim,'#1E8449');
+    drawViolin(CURRENT.creatinine - 0.024);
+  }
+});
+</script>
+</body>
+</html>
