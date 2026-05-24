@@ -30,3 +30,4 @@ Thumbs.db
 
 # Rust
 target/
+services/sentinel-control-plane/rules/*.mmdb
