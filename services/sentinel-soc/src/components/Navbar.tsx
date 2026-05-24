@@ -6,6 +6,7 @@ import { useCountUp } from '../hooks/useCountUp'
 export default function Navbar() {
   const { stats, sseConnected, threats, pinnedThreats } = useSentinelStore()
   const [visible, setVisible] = useState(true)
+  const [bellOpen, setBellOpen] = useState(false)
   const lastY = useRef(0)
 
   const packetRate    = useCountUp(stats.packetRate)
@@ -94,22 +95,46 @@ export default function Navbar() {
         </div>
 
         {/* Bell */}
-        <button style={{
-          width: '36px', height: '36px', borderRadius: '50%',
-          background: 'rgba(255,255,255,0.07)', border: 'none',
-          cursor: 'pointer', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', color: 'rgba(249,247,242,0.65)',
-          position: 'relative',
-        }}>
-          <Bell size={16} />
-          {pinnedThreats.length > 0 && (
-            <span style={{
-              position: 'absolute', top: '6px', right: '6px',
-              width: '8px', height: '8px', borderRadius: '50%',
-              background: '#C0392B',
-            }} />
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => setBellOpen(!bellOpen)} style={{
+            width: '36px', height: '36px', borderRadius: '50%',
+            background: bellOpen ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)',
+            border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', color: 'rgba(249,247,242,0.65)', position: 'relative',
+          }}>
+            <Bell size={16} />
+            {pinnedThreats.length > 0 && (
+              <span style={{
+                position: 'absolute', top: '6px', right: '6px',
+                width: '8px', height: '8px', borderRadius: '50%', background: '#C0392B',
+              }} />
+            )}
+          </button>
+          {bellOpen && (
+            <div style={{
+              position: 'absolute', top: '44px', right: 0, width: '280px',
+              background: 'white', borderRadius: '18.8px',
+              boxShadow: '0 20px 40px rgba(62,39,35,0.15)',
+              border: '1px solid rgba(0,73,83,0.1)', padding: '12px', zIndex: 200,
+            }}>
+              <div style={{ fontFamily: 'Inter Tight, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(93,64,55,0.4)', textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '8px' }}>
+                Pinned Alerts {pinnedThreats.length > 0 ? `(${pinnedThreats.length})` : ''}
+              </div>
+              {pinnedThreats.length === 0
+                ? <div style={{ fontFamily: 'Albert Sans, sans-serif', fontSize: '12px', color: 'rgba(93,64,55,0.4)', textAlign: 'center', padding: '12px' }}>No pinned alerts</div>
+                : pinnedThreats.map(t => (
+                  <div key={t.id} style={{
+                    background: 'rgba(192,57,43,0.06)', borderRadius: '12px',
+                    padding: '8px 10px', marginBottom: '6px', borderLeft: '3px solid #C0392B',
+                  }}>
+                    <div style={{ fontFamily: 'Inter Tight, sans-serif', fontSize: '11px', fontWeight: 600, color: '#3E2723' }}>{t.type.replace(/_/g,' ')}</div>
+                    <div style={{ fontFamily: 'Albert Sans, sans-serif', fontSize: '10px', color: '#5D4037', marginTop: '2px' }}>{t.srcIp}</div>
+                  </div>
+                ))
+              }
+            </div>
           )}
-        </button>
+        </div>
 
         {/* WS dot */}
         <div style={{

@@ -156,6 +156,9 @@ export default function DeviceRegistry() {
   const handleQuarantine = async (ip: string, e: React.MouseEvent) => {
     e.stopPropagation()
     quarantineDevice(ip)
+    const btn = e.currentTarget as HTMLButtonElement
+    btn.textContent = '✓ Quarantined'
+    btn.style.background = '#1E8449'
     try { await fetch(`http://localhost:8090/sentinel/quarantine/${ip}`, { method: 'POST' }) } catch {}
   }
 
