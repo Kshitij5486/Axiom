@@ -11,6 +11,9 @@ import (
 	"sync"
 	"math"
 	"strings"
+	"context"
+
+	kafkago "github.com/segmentio/kafka-go"
 	"sync/atomic"
 	"time"
 
@@ -532,6 +535,44 @@ func serveSocket(path string, geo *GeoPool, rate *RateLimiter, sni *SNIIntel) {
 		}
 		activeConns.Inc()
 		go handleConn(conn, geo, rate, sni)
+	}
+}
+
+
+// ── Kafka Consumer — consumes from network.flows topic ──
+func startKafkaConsumer(geo *GeoPool, rate *RateLimiter, sni *SNIIntel) {
+	brokers := []string{"localhost:9094"}
+	topic   := "network.flows"
+	groupID := "sentinel-control-plane"
+
+	r := kafkago.NewReader(kafkago.ReaderConfig{
+		Brokers:     brokers,
+		Topic:       topic,
+		GroupID:     groupID,
+		MinBytes:    1,
+		MaxBytes:    10e6,
+		StartOffset: kafkago.LastOffset,
+	})
+	defer r.Close()
+
+	log.Printf("[KAFKA] Consuming from topic=%s brokers=%v", topic, brokers)
+
+	ctx := context.Background()
+	for {
+		msg, err := r.ReadMessage(ctx)
+		if err != nil {
+			log.Printf("[KAFKA] Read error: %v — retrying in 5s", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		var evt FlowEvent
+		if err := json.Unmarshal(msg.Value, &evt); err != nil {
+			log.Printf("[KAFKA] Parse error: %v", err)
+			continue
+		}
+
+		processEvent(evt, geo, rate, sni)
 	}
 }
 
