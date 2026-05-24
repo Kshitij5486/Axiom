@@ -10,6 +10,7 @@ import (
 	"os"
 	"sync"
 	"math"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -69,10 +70,13 @@ func init() {
 }
 
 var (
-	globalThreats []ThreatEvent
-	threatsMu     sync.RWMutex
-	threatsChan   = make(chan ThreatEvent, 1000)
-	redisPool     *redis.Pool
+	globalThreats  []ThreatEvent
+	threatsMu      sync.RWMutex
+	threatsChan    = make(chan ThreatEvent, 1000)
+	redisPool      *redis.Pool
+	quarantinedIPs sync.Map // ip -> time.Time
+	sseClients     sync.Map // client chan -> true
+	n8nWebhookURL  = "http://localhost:5678/webhook/sentinel"
 )
 
 func redisSet(key, val string, ttl int) {
@@ -283,6 +287,28 @@ func (t *TrustScorer) Penalise(ip, severity string) {
 		fmt.Sprintf("%.2f", t.scores[ip]), 86400)
 }
 
+func notifyN8N(threat ThreatEvent) {
+	data, _ := json.Marshal(threat)
+	resp, err := http.Post(n8nWebhookURL, "application/json", strings.NewReader(string(data)))
+	if err != nil {
+		log.Printf("[N8N] Webhook failed: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	log.Printf("[N8N] Webhook sent severity=%s type=%s", threat.Severity, threat.ThreatType)
+}
+
+func broadcastSSE(threat ThreatEvent) {
+	sseClients.Range(func(k, v interface{}) bool {
+		ch := k.(chan ThreatEvent)
+		select {
+		case ch <- threat:
+		default:
+		}
+		return true
+	})
+}
+
 func threatCollector(scorer *TrustScorer) {
 	for threat := range threatsChan {
 		threatsMu.Lock()
@@ -292,6 +318,12 @@ func threatCollector(scorer *TrustScorer) {
 		globalThreats = append(globalThreats, threat)
 		threatsMu.Unlock()
 		scorer.Penalise(threat.SrcIP, threat.Severity)
+		// Broadcast to SSE clients
+		go broadcastSSE(threat)
+		// Notify n8n for HIGH and CRITICAL
+		if threat.Severity == "HIGH" || threat.Severity == "CRITICAL" {
+			go notifyN8N(threat)
+		}
 	}
 }
 
@@ -503,6 +535,11 @@ func serveSocket(path string, geo *GeoPool, rate *RateLimiter, sni *SNIIntel) {
 	}
 }
 
+func blockIP(ip string) {
+	log.Printf("[IPTABLES] Blocking %s (simulated in WSL2)", ip)
+	// On bare metal: exec.Command("iptables", "-I", "INPUT", "-s", ip, "-j", "DROP").Run()
+}
+
 func main() {
 	socketPath := "/tmp/axiom_sentinel.sock"
 	mmdbPath   := "rules/GeoLite2-Country.mmdb"
@@ -534,9 +571,13 @@ func main() {
 	go func() {
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", promhttp.Handler())
+
+		// Health
 		mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, `{"status":"ok"}`)
+			fmt.Fprintf(w, "{\"status\":\"ok\",\"service\":\"sentinel-control-plane\"}")
 		})
+
+		// GET /sentinel/threats
 		mux.HandleFunc("/sentinel/threats", func(w http.ResponseWriter, r *http.Request) {
 			threatsMu.RLock()
 			defer threatsMu.RUnlock()
@@ -545,15 +586,98 @@ func main() {
 				"threats": globalThreats, "total": len(globalThreats),
 			})
 		})
+
+		// GET /sentinel/stats
 		mux.HandleFunc("/sentinel/stats", func(w http.ResponseWriter, r *http.Request) {
 			threatsMu.RLock()
 			n := len(globalThreats)
 			threatsMu.RUnlock()
+			quarantineCount := 0
+			quarantinedIPs.Range(func(k, v interface{}) bool { quarantineCount++; return true })
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"threats_total": n, "status": "running",
+				"threats_total":      n,
+				"active_quarantines": quarantineCount,
+				"status":             "running",
 			})
 		})
+
+		// GET /sentinel/devices — trust scores
+		mux.HandleFunc("/sentinel/devices", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			devices := []map[string]interface{}{}
+			if redisPool != nil {
+				c := redisPool.Get()
+				defer c.Close()
+				keys, _ := redis.Strings(c.Do("KEYS", "sentinel:trust:*"))
+				for _, key := range keys {
+					val, _ := redis.String(c.Do("GET", key))
+					ip := key[len("sentinel:trust:"):]
+					_, quarantined := quarantinedIPs.Load(ip)
+					devices = append(devices, map[string]interface{}{
+						"ip": ip, "trust_score": val, "quarantined": quarantined,
+					})
+				}
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"devices": devices, "total": len(devices),
+			})
+		})
+
+		// POST /sentinel/quarantine/{ip}
+		mux.HandleFunc("/sentinel/quarantine/", func(w http.ResponseWriter, r *http.Request) {
+			ip := r.URL.Path[len("/sentinel/quarantine/"):]
+			if ip == "" {
+				http.Error(w, "IP required", 400)
+				return
+			}
+			if r.Method == http.MethodPost {
+				quarantinedIPs.Store(ip, time.Now())
+				go blockIP(ip)
+				if redisPool != nil {
+					c := redisPool.Get()
+					c.Do("SETEX", fmt.Sprintf("sentinel:quarantine:%s", ip), 3600, "1")
+					c.Close()
+				}
+				log.Printf("[QUARANTINE] IP %s quarantined", ip)
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintf(w, `{"status":"quarantined","ip":"%s"}`, ip)
+			} else if r.Method == http.MethodDelete {
+				quarantinedIPs.Delete(ip)
+				log.Printf("[QUARANTINE] IP %s released", ip)
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintf(w, `{"status":"released","ip":"%s"}`, ip)
+			}
+		})
+
+		// GET /sentinel/stream — SSE live threat events
+		mux.HandleFunc("/sentinel/stream", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			clientChan := make(chan ThreatEvent, 100)
+			sseClients.Store(clientChan, true)
+			defer sseClients.Delete(clientChan)
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				http.Error(w, "SSE not supported", 500)
+				return
+			}
+			fmt.Fprintf(w, "data: {\"status\":\"connected\"}\n\n")
+			flusher.Flush()
+			for {
+				select {
+				case evt := <-clientChan:
+					data, _ := json.Marshal(evt)
+					fmt.Fprintf(w, "data: %s\n\n", data)
+					flusher.Flush()
+				case <-r.Context().Done():
+					return
+				}
+			}
+		})
+
 		log.Printf("[CONTROL] API on :8090  Metrics on :9182")
 		go http.ListenAndServe(":9182", promhttp.Handler())
 		log.Fatal(http.ListenAndServe(":8090", mux))
