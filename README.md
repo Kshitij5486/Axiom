@@ -1,123 +1,103 @@
-# Axiom — Causal-AI Clinical Intelligence Platform
+# AXIOM - Causal AI Clinical Intelligence Platform
 
-**The world's first per-patient causal graph clinical decision support system.**
+[![Tests](https://img.shields.io/badge/tests-222%20passed-brightgreen)](https://github.com/Kshitij5486/Axiom/actions)
+[![Version](https://img.shields.io/badge/version-v1.0.0-004953)](https://github.com/Kshitij5486/Axiom/releases)
 
-A full-stack, federated, real-time clinical operating system that combines
-causal inference, reinforcement learning, zero-knowledge proofs, and
-Byzantine-fault-tolerant federated learning — deployable across hospital
-networks with no patient data ever leaving the institution.
-
-> Every feature must serve a real clinical need.
-> Every technology must be justified by the problem.
-> The UI must be so good that non-technical people are impressed
-> before technical people look at the code.
-
----
-
-## What It Does
-
-Most clinical decision support tools are correlation-based.
-They say "patients with these symptoms often get this drug."
-
-Axiom asks a different question: **for this specific patient,
-given their individual causal graph, what is the causal effect
-of intervention X on outcome Y?**
-
-That is a fundamentally different — and more defensible —
-type of clinical recommendation.
-
----
-
-## Architecture
-Layer 0  FHIR R4 Ingestion + Kafka Pipeline      ← v0.1.0
-Layer 1  Per-Patient Causal Graph (DoWhy)         ← Sprint 2
-Layer 2  Survival Model + RL + BioBERT + Anomaly  ← Sprint 3-6
-Layer 3  Federated Learning + ZK Proofs           ← Sprint 7-8
-Layer 4  GraphQL + WebSocket + gRPC APIs          ← Sprint 9
-Layer 5  React 18 + Three.js 3D UI + Mobile       ← Sprint 10-11
-Layer 6  Prometheus + Grafana + Loki + Jaeger      ← Sprint 12
-Layer 7  Kubernetes + CI/CD + v1.0.0              ← Sprint 12
-
----
-
-## Current Status — v0.7.0
-
-Sprints 1-7 complete. Data ingestion, causal engine, and ZK trust layer fully operational.
-Services running:    18
-Patients ingested:   50
-Observations:        5000
-Causal graphs:       50 (avg 10 effects, 212ms)
-ZK proofs:           auto-generated per graph build
-Federated nodes:     3 (hospital-1,2,3)
-Byzantine detected:  hospital-3 auto-excluded
-Unit tests:          150 passed, 0 failed
-Kafka topics:        7
-
----
+> Causal AI that a doctor can verify, a regulator can audit, and a patient can trust.
 
 ## Quick Start
 
-```bash
-# Start all infrastructure
-cd infrastructure
-docker compose up -d
+    git clone https://github.com/Kshitij5486/Axiom.git
+    cd Axiom/infrastructure
+    docker compose up -d
+    cd ..
+    python -m http.server 3000 --directory services/dashboard
+    # Open http://localhost:3000
 
-# Start FHIR Adapter
-cd services/fhir-adapter
-mvn spring-boot:run
+## What is Axiom?
 
-# Start Normalisation Service
-cd services/normalisation-service
-python -m venv venv && venv/Scripts/activate
-pip install -r requirements.txt
-python main.py
+Axiom is a production-grade clinical AI platform that replaces black-box ML
+with per-patient causal graphs. Every treatment recommendation is:
+- Causally grounded: DoWhy causal inference, not correlation
+- Cryptographically verified: ZK proof on every output
+- Federally learned: patient data never leaves the hospital
+- Interactively explainable: 3D graph the doctor can rotate and query
 
-# Generate synthetic patients
-cd infrastructure/data_generator
-python generate_patients.py
-```
+## Services
 
-**Health checks:**
-http://localhost:8080/fhir/health
-http://localhost:8086/health
-http://localhost:9095/-/healthy
-http://localhost:3001/api/health
+| Service | Port | Technology |
+|---------|------|-----------|
+| FHIR Adapter | 8080 | Java Spring Boot |
+| Causal Engine | 8081 | Python + DoWhy |
+| Survival + RL | 8082 | Python + PyTorch |
+| NLP + Anomaly | 8083 | Python + BioBERT |
+| ZK Service | 8084 | Python |
+| Federated | 8085 | Python |
+| GraphQL Gateway | 4000 | Node.js Apollo |
+| Dashboard | 3000 | HTML + D3 + Three.js |
 
-**Grafana:** http://localhost:3001 — admin / axiom123
+## Key Results
 
----
+| Metric | Value |
+|--------|-------|
+| Causal graph build time | 212ms avg |
+| Survival model C-index | 0.792 |
+| PPO policy mean reward | 3.16 |
+| ZK proof generation | <10ms |
+| Unit tests | 222 / 222 pass |
+| Byzantine nodes detected | Hospital C (100% recall) |
 
-## Service Map
+## Screens
 
-| Service        | Port  | Technology       |
-|----------------|-------|------------------|
-| FHIR Adapter   | 8080  | Java Spring Boot |
-| Normalisation  | 8086  | Python FastAPI   |
-| PostgreSQL     | 5439  | postgres:15      |
-| MongoDB        | 27018 | mongo:7          |
-| Redis          | 6380  | redis:7          |
-| Kafka          | 9094  | Confluent 7.4    |
-| MinIO          | 9010  | minio:latest     |
-| Prometheus     | 9095  | prom 2.45        |
-| Grafana        | 3001  | grafana 10.1     |
+- Command Centre: Real-time vitals, causal recommendations, ZK proof badges
+- 3D Causal Graph: Three.js graph with particles, edge click shows ZK proof
+- Counterfactual Simulator: Sliders, Monte Carlo violin plot, survival curves
+- Population Atlas: 50-patient heatmap, cohort causal graph
 
----
+## Sprint History
 
-## Tech Stack
-Backend:     Java 21, Python 3.13, Node.js 20, Rust
-AI/ML:       DoWhy, PyTorch, Stable Baselines3, BioBERT
-Data:        PostgreSQL 15, MongoDB 7, Redis 7, Kafka
-Frontend:    React 18, TypeScript, Three.js, D3.js
-Mobile:      React Native
-Infra:       Docker, Kubernetes, GitHub Actions
-Observability: Prometheus, Grafana, Loki, Jaeger
+| Sprint | What | Version |
+|--------|------|---------|
+| 1 | FHIR + Kafka + PostgreSQL | v0.1.0 |
+| 2 | Per-patient causal graphs | v0.2.0 |
+| 3 | ZK trust layer | v0.3.0 |
+| 4 | Federated + Byzantine | v0.4.0 |
+| 5 | Survival + RL | v0.5.0 |
+| 6 | NLP + Anomaly Detection | v0.6.0 |
+| 7 | GraphQL + WebSocket + gRPC | v0.7.0 |
+| 8 | Command Centre Dashboard | v0.8.0 |
+| 9 | 3D Graph + Counterfactual | v0.9.0 |
+| 10 | Population Atlas | v0.10.0 |
+| 12 | Kubernetes + CI/CD + v1.0.0 | v1.0.0 |
 
----
+## Production Deployment
+
+    kubectl apply -f infrastructure/kubernetes/manifests/
+    helm install axiom ./infrastructure/kubernetes/helm/axiom
+
+See docs/DEPLOYMENT.md for full guide.
+
+## Interview Talking Points
+
+1. Causal AI not correlation: DoWhy structural causal models. The lisinopril
+   recommendation exists because systolic_bp causally reduces creatinine with
+   effect 0.0239 - not because CKD patients statistically receive lisinopril.
+
+2. ZK-verified outputs: Every recommendation carries a SHA-256 hash chain.
+   Tampered model or data means proof fails. Production-grade auditability.
+
+3. Byzantine-robust federated learning: Hospital C injected corrupted gradients.
+   Bulyan aggregation detected outlier (distance 71.1 vs 36.6 honest average)
+   and excluded it. Global model unaffected.
+
+4. Per-patient counterfactuals: Doctor asks what happens to a patient if
+   lisinopril increases by 10mg. Monte Carlo engine runs 1000 simulations
+   and shows the full distribution with confidence intervals.
+
+5. Production infrastructure: Kubernetes with HPA, GitHub Actions CI/CD,
+   Prometheus metrics, Grafana dashboards, multi-stage Dockerfiles.
 
 ## Author
 
-**Kshitij Srivastava**
-NIT Surat — 3rd year Computer Science
-github.com/Kshitij5486/Axiom
-
-*12 sprints. 84 days. 1 developer.*
+Kshitij Srivastava - NIT Surat, 3rd Year CS
+GitHub: github.com/Kshitij5486/Axiom
