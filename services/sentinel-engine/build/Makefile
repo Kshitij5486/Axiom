@@ -117,6 +117,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named ingress_lib
+
+# Build rule for target.
+ingress_lib: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 ingress_lib
+.PHONY : ingress_lib
+
+# fast build rule for target.
+ingress_lib/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ingress_lib.dir/build.make CMakeFiles/ingress_lib.dir/build
+.PHONY : ingress_lib/fast
+
+#=============================================================================
 # Target rules for targets named ingress_service
 
 # Build rule for target.
@@ -221,7 +234,7 @@ src/ingress_handler/ingress_handler.o: src/ingress_handler/ingress_handler.cpp.o
 
 # target to build an object file
 src/ingress_handler/ingress_handler.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ingress_service.dir/build.make CMakeFiles/ingress_service.dir/src/ingress_handler/ingress_handler.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ingress_lib.dir/build.make CMakeFiles/ingress_lib.dir/src/ingress_handler/ingress_handler.cpp.o
 .PHONY : src/ingress_handler/ingress_handler.cpp.o
 
 src/ingress_handler/ingress_handler.i: src/ingress_handler/ingress_handler.cpp.i
@@ -229,7 +242,7 @@ src/ingress_handler/ingress_handler.i: src/ingress_handler/ingress_handler.cpp.i
 
 # target to preprocess a source file
 src/ingress_handler/ingress_handler.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ingress_service.dir/build.make CMakeFiles/ingress_service.dir/src/ingress_handler/ingress_handler.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ingress_lib.dir/build.make CMakeFiles/ingress_lib.dir/src/ingress_handler/ingress_handler.cpp.i
 .PHONY : src/ingress_handler/ingress_handler.cpp.i
 
 src/ingress_handler/ingress_handler.s: src/ingress_handler/ingress_handler.cpp.s
@@ -237,7 +250,7 @@ src/ingress_handler/ingress_handler.s: src/ingress_handler/ingress_handler.cpp.s
 
 # target to generate assembly for a file
 src/ingress_handler/ingress_handler.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ingress_service.dir/build.make CMakeFiles/ingress_service.dir/src/ingress_handler/ingress_handler.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ingress_lib.dir/build.make CMakeFiles/ingress_lib.dir/src/ingress_handler/ingress_handler.cpp.s
 .PHONY : src/ingress_handler/ingress_handler.cpp.s
 
 src/ingress_handler/main.o: src/ingress_handler/main.cpp.o
@@ -369,6 +382,7 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... flow_service"
+	@echo "... ingress_lib"
 	@echo "... ingress_service"
 	@echo "... inspec_service"
 	@echo "... ipc_service"

@@ -103,10 +103,12 @@ ipc_service_OBJECTS = \
 "CMakeFiles/ipc_service.dir/src/ipc_bridge/ipc_bridge.cpp.o"
 
 # External object files for target ipc_service
-ipc_service_EXTERNAL_OBJECTS =
+ipc_service_EXTERNAL_OBJECTS = \
+"/mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/build/CMakeFiles/ingress_lib.dir/src/ingress_handler/ingress_handler.cpp.o"
 
 ipc_service: CMakeFiles/ipc_service.dir/src/ipc_bridge/main.cpp.o
 ipc_service: CMakeFiles/ipc_service.dir/src/ipc_bridge/ipc_bridge.cpp.o
+ipc_service: CMakeFiles/ingress_lib.dir/src/ingress_handler/ingress_handler.cpp.o
 ipc_service: CMakeFiles/ipc_service.dir/build.make
 ipc_service: /usr/lib/x86_64-linux-gnu/libpcap.so
 ipc_service: CMakeFiles/ipc_service.dir/link.txt

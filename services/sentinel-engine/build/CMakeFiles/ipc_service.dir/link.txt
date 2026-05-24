@@ -1,1 +1,1 @@
-/usr/bin/c++ CMakeFiles/ipc_service.dir/src/ipc_bridge/main.cpp.o CMakeFiles/ipc_service.dir/src/ipc_bridge/ipc_bridge.cpp.o -o ipc_service  /usr/lib/x86_64-linux-gnu/libpcap.so -lpthread 
+/usr/bin/c++ -g CMakeFiles/ipc_service.dir/src/ipc_bridge/main.cpp.o CMakeFiles/ipc_service.dir/src/ipc_bridge/ipc_bridge.cpp.o CMakeFiles/ingress_lib.dir/src/ingress_handler/ingress_handler.cpp.o -o ipc_service  /usr/lib/x86_64-linux-gnu/libpcap.so -lpthread 

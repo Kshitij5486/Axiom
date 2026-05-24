@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/include -I/mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/src/common
 
-CXX_FLAGS = -std=gnu++17
+CXX_FLAGS = -g -std=gnu++17
 

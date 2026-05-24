@@ -103,10 +103,12 @@ inspec_service_OBJECTS = \
 "CMakeFiles/inspec_service.dir/src/protocol_inspec/sni_extractor.cpp.o"
 
 # External object files for target inspec_service
-inspec_service_EXTERNAL_OBJECTS =
+inspec_service_EXTERNAL_OBJECTS = \
+"/mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/build/CMakeFiles/ingress_lib.dir/src/ingress_handler/ingress_handler.cpp.o"
 
 inspec_service: CMakeFiles/inspec_service.dir/src/protocol_inspec/main.cpp.o
 inspec_service: CMakeFiles/inspec_service.dir/src/protocol_inspec/sni_extractor.cpp.o
+inspec_service: CMakeFiles/ingress_lib.dir/src/ingress_handler/ingress_handler.cpp.o
 inspec_service: CMakeFiles/inspec_service.dir/build.make
 inspec_service: /usr/lib/x86_64-linux-gnu/libpcap.so
 inspec_service: CMakeFiles/inspec_service.dir/link.txt

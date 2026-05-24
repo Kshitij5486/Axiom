@@ -1,1 +1,1 @@
-/usr/bin/c++ CMakeFiles/flow_service.dir/src/flow_state/main.cpp.o CMakeFiles/flow_service.dir/src/flow_state/flow_tracker.cpp.o -o flow_service  /usr/lib/x86_64-linux-gnu/libpcap.so -lpthread 
+/usr/bin/c++ -g CMakeFiles/flow_service.dir/src/flow_state/main.cpp.o CMakeFiles/flow_service.dir/src/flow_state/flow_tracker.cpp.o CMakeFiles/ingress_lib.dir/src/ingress_handler/ingress_handler.cpp.o -o flow_service  /usr/lib/x86_64-linux-gnu/libpcap.so -lpthread 

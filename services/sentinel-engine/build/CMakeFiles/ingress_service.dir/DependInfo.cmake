@@ -8,7 +8,6 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/src/ingress_handler/ingress_handler.cpp" "CMakeFiles/ingress_service.dir/src/ingress_handler/ingress_handler.cpp.o" "gcc" "CMakeFiles/ingress_service.dir/src/ingress_handler/ingress_handler.cpp.o.d"
   "/mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/src/ingress_handler/main.cpp" "CMakeFiles/ingress_service.dir/src/ingress_handler/main.cpp.o" "gcc" "CMakeFiles/ingress_service.dir/src/ingress_handler/main.cpp.o.d"
   )
 
