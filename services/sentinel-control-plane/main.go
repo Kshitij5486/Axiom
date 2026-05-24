@@ -93,10 +93,10 @@ func NewGeoPool(path string) *GeoPool {
 	db, err := geoip2.Open(path)
 	if err != nil {
 		log.Printf("[GEOIP] Warning: %v", err)
-		return &GeoPool{allowed: map[string]bool{"IN": true, "US": true, "GB": true}}
+		return &GeoPool{allowed: map[string]bool{"IN": true, "US": true, "GB": true, "AE": true, "OM": true}}
 	}
 	log.Printf("[GEOIP] GeoLite2-Country loaded")
-	return &GeoPool{db: db, allowed: map[string]bool{"IN": true, "US": true, "GB": true}}
+	return &GeoPool{db: db, allowed: map[string]bool{"IN": true, "US": true, "GB": true, "AE": true, "OM": true}}
 }
 
 func (g *GeoPool) Check(evt FlowEvent) {
