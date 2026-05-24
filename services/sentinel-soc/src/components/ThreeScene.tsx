@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { useSentinelStore } from '../store/sentinelStore'
+import D3Heatmap from './D3Heatmap'
 
 const DEVICE_COLORS: Record<string, string> = {
   ehr_system:     '#3b82f6',
@@ -285,7 +286,25 @@ export default function ThreeScene() {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
+      {/* D3 Heatmap overlay */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        opacity: heatmapMode ? 1 : 0,
+        pointerEvents: heatmapMode ? 'auto' : 'none',
+        transition: 'opacity 0.3s cubic-bezier(0.16,1,0.3,1)',
+        background: '#F9F7F2',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <D3Heatmap width={600} height={400} />
+      </div>
+
+      {/* Three.js canvas fade */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        opacity: heatmapMode ? 0 : 1,
+        transition: 'opacity 0.3s cubic-bezier(0.16,1,0.3,1)',
+        pointerEvents: heatmapMode ? 'none' : 'auto',
+      }} ref={mountRef} />
 
       {/* Heatmap toggle */}
       <button
