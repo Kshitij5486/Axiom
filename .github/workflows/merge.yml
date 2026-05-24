@@ -12,7 +12,13 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install pytest dowhy networkx scikit-learn lifelines grpcio grpcio-tools
+        run: |
+          pip install pytest
+          pip install requests psycopg2-binary
+          pip install dowhy networkx scikit-learn lifelines
+          pip install grpcio grpcio-tools
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install gymnasium stable-baselines3
       - name: Run unit tests
         env:
           PYTHONPATH: services/causal-engine:services/zk-service:services/federated-service:services/survival-service:services/nlp-service
