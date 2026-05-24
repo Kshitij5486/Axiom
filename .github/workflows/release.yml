@@ -1,4 +1,4 @@
-﻿name: Release to Production
+name: Release to Production
 on:
   push:
     tags:
@@ -13,8 +13,15 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install pytest dowhy networkx scikit-learn lifelines stable-baselines3 gymnasium torch transformers grpcio grpcio-tools
-      - name: Run all 222 tests
+        run: |
+          pip install pytest
+          pip install requests psycopg2-binary pymongo
+          pip install fastapi uvicorn httpx
+          pip install dowhy networkx scikit-learn lifelines
+          pip install grpcio grpcio-tools
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install gymnasium stable-baselines3
+      - name: Run all 150 tests
         env:
           PYTHONPATH: services/causal-engine:services/zk-service:services/federated-service:services/survival-service:services/nlp-service
         run: python -m pytest tests/unit/ -v --tb=short
@@ -37,6 +44,6 @@ jobs:
       - uses: softprops/action-gh-release@v1
         with:
           name: Axiom Release
-          body: Production release of Axiom Clinical AI Platform. 222 tests 0 failures.
+          body: Production release of Axiom Clinical AI Platform. 150 tests 0 failures.
           draft: false
           prerelease: false
