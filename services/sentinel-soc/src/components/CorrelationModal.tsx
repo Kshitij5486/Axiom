@@ -227,7 +227,7 @@ export default function CorrelationModal() {
 
           {/* View patient button */}
           {c.patientId && (
-            <a href="../dashboard/dashboard.html" style={{
+            <a href="http://localhost:3000/dashboard.html" style={{
               display: 'block', background: '#004953', color: '#F9F7F2',
               border: 'none', borderRadius: '117px', padding: '14px 32px',
               fontFamily: 'Inter Tight, sans-serif', fontSize: '11px',
