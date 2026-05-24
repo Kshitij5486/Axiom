@@ -9,7 +9,6 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/src/protocol_inspec/main.cpp" "CMakeFiles/inspec_service.dir/src/protocol_inspec/main.cpp.o" "gcc" "CMakeFiles/inspec_service.dir/src/protocol_inspec/main.cpp.o.d"
-  "/mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/src/protocol_inspec/sni_extractor.cpp" "CMakeFiles/inspec_service.dir/src/protocol_inspec/sni_extractor.cpp.o" "gcc" "CMakeFiles/inspec_service.dir/src/protocol_inspec/sni_extractor.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

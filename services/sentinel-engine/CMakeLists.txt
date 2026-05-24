@@ -13,11 +13,15 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src/common
 )
 
-# Shared ingress handler object (reused by flow_service)
-add_library(ingress_lib OBJECT
-    src/ingress_handler/ingress_handler.cpp
-)
+# Shared object libraries
+add_library(ingress_lib OBJECT src/ingress_handler/ingress_handler.cpp)
 target_include_directories(ingress_lib PUBLIC ${PCAP_INCLUDE_DIR} include src/common)
+
+add_library(flow_lib OBJECT src/flow_state/flow_tracker.cpp)
+target_include_directories(flow_lib PUBLIC include src/common)
+
+add_library(sni_lib OBJECT src/protocol_inspec/sni_extractor.cpp)
+target_include_directories(sni_lib PUBLIC include src/common)
 
 # Target 1: ingress_service
 add_executable(ingress_service
@@ -29,16 +33,17 @@ target_link_libraries(ingress_service ${PCAP_LIBRARY} pthread)
 # Target 2: flow_service
 add_executable(flow_service
     src/flow_state/main.cpp
-    src/flow_state/flow_tracker.cpp
     $<TARGET_OBJECTS:ingress_lib>
+    $<TARGET_OBJECTS:flow_lib>
 )
 target_link_libraries(flow_service ${PCAP_LIBRARY} pthread)
 
 # Target 3: inspec_service
 add_executable(inspec_service
     src/protocol_inspec/main.cpp
-    src/protocol_inspec/sni_extractor.cpp
     $<TARGET_OBJECTS:ingress_lib>
+    $<TARGET_OBJECTS:flow_lib>
+    $<TARGET_OBJECTS:sni_lib>
 )
 target_link_libraries(inspec_service ${PCAP_LIBRARY} pthread)
 
@@ -47,5 +52,7 @@ add_executable(ipc_service
     src/ipc_bridge/main.cpp
     src/ipc_bridge/ipc_bridge.cpp
     $<TARGET_OBJECTS:ingress_lib>
+    $<TARGET_OBJECTS:flow_lib>
+    $<TARGET_OBJECTS:sni_lib>
 )
 target_link_libraries(ipc_service ${PCAP_LIBRARY} pthread)

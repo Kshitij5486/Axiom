@@ -130,6 +130,32 @@ ingress_lib/fast:
 .PHONY : ingress_lib/fast
 
 #=============================================================================
+# Target rules for targets named flow_lib
+
+# Build rule for target.
+flow_lib: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 flow_lib
+.PHONY : flow_lib
+
+# fast build rule for target.
+flow_lib/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flow_lib.dir/build.make CMakeFiles/flow_lib.dir/build
+.PHONY : flow_lib/fast
+
+#=============================================================================
+# Target rules for targets named sni_lib
+
+# Build rule for target.
+sni_lib: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 sni_lib
+.PHONY : sni_lib
+
+# fast build rule for target.
+sni_lib/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sni_lib.dir/build.make CMakeFiles/sni_lib.dir/build
+.PHONY : sni_lib/fast
+
+#=============================================================================
 # Target rules for targets named ingress_service
 
 # Build rule for target.
@@ -186,7 +212,7 @@ src/flow_state/flow_tracker.o: src/flow_state/flow_tracker.cpp.o
 
 # target to build an object file
 src/flow_state/flow_tracker.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/flow_service.dir/build.make CMakeFiles/flow_service.dir/src/flow_state/flow_tracker.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flow_lib.dir/build.make CMakeFiles/flow_lib.dir/src/flow_state/flow_tracker.cpp.o
 .PHONY : src/flow_state/flow_tracker.cpp.o
 
 src/flow_state/flow_tracker.i: src/flow_state/flow_tracker.cpp.i
@@ -194,7 +220,7 @@ src/flow_state/flow_tracker.i: src/flow_state/flow_tracker.cpp.i
 
 # target to preprocess a source file
 src/flow_state/flow_tracker.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/flow_service.dir/build.make CMakeFiles/flow_service.dir/src/flow_state/flow_tracker.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flow_lib.dir/build.make CMakeFiles/flow_lib.dir/src/flow_state/flow_tracker.cpp.i
 .PHONY : src/flow_state/flow_tracker.cpp.i
 
 src/flow_state/flow_tracker.s: src/flow_state/flow_tracker.cpp.s
@@ -202,7 +228,7 @@ src/flow_state/flow_tracker.s: src/flow_state/flow_tracker.cpp.s
 
 # target to generate assembly for a file
 src/flow_state/flow_tracker.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/flow_service.dir/build.make CMakeFiles/flow_service.dir/src/flow_state/flow_tracker.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/flow_lib.dir/build.make CMakeFiles/flow_lib.dir/src/flow_state/flow_tracker.cpp.s
 .PHONY : src/flow_state/flow_tracker.cpp.s
 
 src/flow_state/main.o: src/flow_state/main.cpp.o
@@ -354,7 +380,7 @@ src/protocol_inspec/sni_extractor.o: src/protocol_inspec/sni_extractor.cpp.o
 
 # target to build an object file
 src/protocol_inspec/sni_extractor.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/inspec_service.dir/build.make CMakeFiles/inspec_service.dir/src/protocol_inspec/sni_extractor.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sni_lib.dir/build.make CMakeFiles/sni_lib.dir/src/protocol_inspec/sni_extractor.cpp.o
 .PHONY : src/protocol_inspec/sni_extractor.cpp.o
 
 src/protocol_inspec/sni_extractor.i: src/protocol_inspec/sni_extractor.cpp.i
@@ -362,7 +388,7 @@ src/protocol_inspec/sni_extractor.i: src/protocol_inspec/sni_extractor.cpp.i
 
 # target to preprocess a source file
 src/protocol_inspec/sni_extractor.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/inspec_service.dir/build.make CMakeFiles/inspec_service.dir/src/protocol_inspec/sni_extractor.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sni_lib.dir/build.make CMakeFiles/sni_lib.dir/src/protocol_inspec/sni_extractor.cpp.i
 .PHONY : src/protocol_inspec/sni_extractor.cpp.i
 
 src/protocol_inspec/sni_extractor.s: src/protocol_inspec/sni_extractor.cpp.s
@@ -370,7 +396,7 @@ src/protocol_inspec/sni_extractor.s: src/protocol_inspec/sni_extractor.cpp.s
 
 # target to generate assembly for a file
 src/protocol_inspec/sni_extractor.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/inspec_service.dir/build.make CMakeFiles/inspec_service.dir/src/protocol_inspec/sni_extractor.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sni_lib.dir/build.make CMakeFiles/sni_lib.dir/src/protocol_inspec/sni_extractor.cpp.s
 .PHONY : src/protocol_inspec/sni_extractor.cpp.s
 
 # Help Target
@@ -381,11 +407,13 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... flow_lib"
 	@echo "... flow_service"
 	@echo "... ingress_lib"
 	@echo "... ingress_service"
 	@echo "... inspec_service"
 	@echo "... ipc_service"
+	@echo "... sni_lib"
 	@echo "... src/flow_state/flow_tracker.o"
 	@echo "... src/flow_state/flow_tracker.i"
 	@echo "... src/flow_state/flow_tracker.s"

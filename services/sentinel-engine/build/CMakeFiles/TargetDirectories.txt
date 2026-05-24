@@ -1,4 +1,6 @@
 /mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/build/CMakeFiles/ingress_lib.dir
+/mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/build/CMakeFiles/flow_lib.dir
+/mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/build/CMakeFiles/sni_lib.dir
 /mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/build/CMakeFiles/ingress_service.dir
 /mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/build/CMakeFiles/flow_service.dir
 /mnt/c/Users/KSHITIJ/axiom/services/sentinel-engine/build/CMakeFiles/inspec_service.dir

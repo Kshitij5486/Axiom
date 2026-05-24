@@ -1,8 +1,6 @@
 file(REMOVE_RECURSE
   "CMakeFiles/inspec_service.dir/src/protocol_inspec/main.cpp.o"
   "CMakeFiles/inspec_service.dir/src/protocol_inspec/main.cpp.o.d"
-  "CMakeFiles/inspec_service.dir/src/protocol_inspec/sni_extractor.cpp.o"
-  "CMakeFiles/inspec_service.dir/src/protocol_inspec/sni_extractor.cpp.o.d"
   "inspec_service"
   "inspec_service.pdb"
 )
