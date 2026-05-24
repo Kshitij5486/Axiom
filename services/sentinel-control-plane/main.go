@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"math"
 	"sync/atomic"
 	"time"
 
@@ -294,12 +295,176 @@ func threatCollector(scorer *TrustScorer) {
 	}
 }
 
+// RansomwareDetector — 4 heuristic rules
+type lateralEntry2 struct{ destIP string; at time.Time }
+type beaconEntry struct{ at time.Time }
+type exfilEntry2 struct{ bytes int64; at time.Time }
+
+var (
+	lateralMu   sync.Mutex
+	lateralMap  = make(map[string][]lateralEntry2)
+	beaconMu    sync.Mutex
+	beaconMap   = make(map[string][]time.Time)
+	spikeMu     sync.Mutex
+	spikeBase   = make(map[string]float64)
+	spikeCurr   = make(map[string][]time.Time)
+	spikeSample = make(map[string]int)
+	exfilMu     sync.Mutex
+	exfilMap    = make(map[string][]exfilEntry2)
+	// Federated monitor
+	federatedMu      sync.Mutex
+	federatedUploads = make(map[string][]time.Time)
+	flowerServerIP   = "10.0.1.1"
+	registeredNodes  = map[string]bool{"10.0.1.10": true, "10.0.1.11": true, "10.0.1.12": true}
+)
+
+func isInternal(ip string) bool {
+	for _, p := range []string{"10.", "172.30.", "192.168."} {
+		if len(ip) >= len(p) && ip[:len(p)] == p { return true }
+	}
+	return false
+}
+
+func checkLateralMovement(evt FlowEvent) {
+	if !isInternal(evt.DestIP) { return }
+	lateralMu.Lock()
+	defer lateralMu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-60 * time.Second)
+	ip := evt.SrcIP
+	entries := lateralMap[ip]
+	valid := entries[:0]
+	for _, e := range entries {
+		if e.at.After(cutoff) { valid = append(valid, e) }
+	}
+	seen := false
+	for _, e := range valid {
+		if e.destIP == evt.DestIP { seen = true; break }
+	}
+	if !seen { valid = append(valid, lateralEntry2{evt.DestIP, now}) }
+	lateralMap[ip] = valid
+	if len(valid) > 15 {
+		t := ThreatEvent{Timestamp: now, SrcIP: evt.SrcIP, DestIP: evt.DestIP,
+			ThreatType: "LATERAL_MOVEMENT", Severity: "HIGH",
+			Detail: fmt.Sprintf("Lateral movement: %d distinct IPs/60s", len(valid))}
+		log.Printf("[RANSOM] LATERAL_MOVEMENT src=%s targets=%d", ip, len(valid))
+		threatsTotal.WithLabelValues("HIGH", "LATERAL_MOVEMENT").Inc()
+		select { case threatsChan <- t: default: }
+	}
+}
+
+func checkBeaconing(evt FlowEvent) {
+	beaconMu.Lock()
+	defer beaconMu.Unlock()
+	key := evt.SrcIP + "->" + evt.DestIP
+	now := time.Now()
+	cutoff := now.Add(-10 * time.Minute)
+	times := beaconMap[key]
+	valid := times[:0]
+	for _, t := range times {
+		if t.After(cutoff) { valid = append(valid, t) }
+	}
+	valid = append(valid, now)
+	beaconMap[key] = valid
+	if len(valid) < 10 { return }
+	intervals := make([]float64, len(valid)-1)
+	for i := 1; i < len(valid); i++ {
+		intervals[i-1] = valid[i].Sub(valid[i-1]).Seconds()
+	}
+	sum := 0.0
+	for _, v := range intervals { sum += v }
+	mean := sum / float64(len(intervals))
+	if mean == 0 { return }
+	variance := 0.0
+	for _, v := range intervals { d := v - mean; variance += d * d }
+	variance /= float64(len(intervals))
+	cv := 0.0
+	if mean > 0 { cv = math.Sqrt(variance) / mean }
+	if cv < 0.1 {
+		t := ThreatEvent{Timestamp: now, SrcIP: evt.SrcIP, DestIP: evt.DestIP,
+			ThreatType: "BEACONING", Severity: "MEDIUM",
+			Detail: fmt.Sprintf("Beaconing CV=%.3f requests=%d", cv, len(valid))}
+		log.Printf("[RANSOM] BEACONING src=%s dest=%s CV=%.3f", evt.SrcIP, evt.DestIP, cv)
+		threatsTotal.WithLabelValues("MEDIUM", "BEACONING").Inc()
+		select { case threatsChan <- t: default: }
+	}
+}
+
+func checkTrafficSpike(evt FlowEvent) {
+	if evt.DeviceType != "medical_device" { return }
+	spikeMu.Lock()
+	defer spikeMu.Unlock()
+	ip := evt.SrcIP
+	now := time.Now()
+	cutoff := now.Add(-time.Minute)
+	times := spikeCurr[ip]
+	valid := times[:0]
+	for _, t := range times {
+		if t.After(cutoff) { valid = append(valid, t) }
+	}
+	valid = append(valid, now)
+	spikeCurr[ip] = valid
+	rate := float64(len(valid))
+	if spikeSample[ip] < 10 {
+		spikeSample[ip]++
+		if spikeBase[ip] == 0 { spikeBase[ip] = rate } else { spikeBase[ip] = 0.9*spikeBase[ip] + 0.1*rate }
+		return
+	}
+	if spikeBase[ip] > 0 && rate > spikeBase[ip]*10 {
+		t := ThreatEvent{Timestamp: now, SrcIP: evt.SrcIP, DestIP: evt.DestIP,
+			ThreatType: "DEVICE_TRAFFIC_SPIKE", Severity: "HIGH",
+			Detail: fmt.Sprintf("Medical device spike: %.0fx baseline", rate/spikeBase[ip])}
+		log.Printf("[RANSOM] TRAFFIC_SPIKE device=%s rate=%.0f baseline=%.0f", ip, rate, spikeBase[ip])
+		threatsTotal.WithLabelValues("HIGH", "DEVICE_TRAFFIC_SPIKE").Inc()
+		select { case threatsChan <- t: default: }
+	}
+	spikeBase[ip] = 0.99*spikeBase[ip] + 0.01*rate
+}
+
+func checkFederatedTraffic(evt FlowEvent) {
+	if evt.DestIP != flowerServerIP && evt.SrcIP != flowerServerIP { return }
+	nodeIP := evt.SrcIP
+	if evt.SrcIP == flowerServerIP { nodeIP = evt.DestIP }
+	federatedMu.Lock()
+	defer federatedMu.Unlock()
+	now := time.Now()
+	if !registeredNodes[nodeIP] && nodeIP != flowerServerIP {
+		t := ThreatEvent{Timestamp: now, SrcIP: evt.SrcIP, DestIP: evt.DestIP,
+			ThreatType: "FEDERATED_ATTACK", Severity: "HIGH",
+			Detail: fmt.Sprintf("Unknown node to Flower server: %s", nodeIP)}
+		log.Printf("[FEDERATED] UNKNOWN_NODE ip=%s", nodeIP)
+		threatsTotal.WithLabelValues("HIGH", "FEDERATED_ATTACK").Inc()
+		select { case threatsChan <- t: default: }
+		return
+	}
+	cutoff := now.Add(-5 * time.Minute)
+	uploads := federatedUploads[nodeIP]
+	valid := uploads[:0]
+	for _, t := range uploads {
+		if t.After(cutoff) { valid = append(valid, t) }
+	}
+	valid = append(valid, now)
+	federatedUploads[nodeIP] = valid
+	if len(valid) > 10 {
+		t := ThreatEvent{Timestamp: now, SrcIP: evt.SrcIP, DestIP: evt.DestIP,
+			ThreatType: "FEDERATED_ATTACK", Severity: "MEDIUM",
+			Detail: fmt.Sprintf("Replay attack: %d uploads/5min from %s", len(valid), nodeIP)}
+		log.Printf("[FEDERATED] REPLAY_ATTACK node=%s uploads=%d", nodeIP, len(valid))
+		threatsTotal.WithLabelValues("MEDIUM", "FEDERATED_ATTACK").Inc()
+		select { case threatsChan <- t: default: }
+	}
+}
+
 func processEvent(evt FlowEvent, geo *GeoPool, rate *RateLimiter, sni *SNIIntel) {
 	eventsProcessed.Inc()
 	flowsTotal.WithLabelValues(evt.Status).Inc()
 	geo.Check(evt)
 	rate.Check(evt)
 	sni.Check(evt)
+	checkLateralMovement(evt)
+	checkBeaconing(evt)
+	checkTrafficSpike(evt)
+	checkFederatedTraffic(evt)
 }
 
 func handleConn(conn net.Conn, geo *GeoPool, rate *RateLimiter, sni *SNIIntel) {
