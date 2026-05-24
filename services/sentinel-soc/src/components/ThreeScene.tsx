@@ -29,7 +29,7 @@ export default function ThreeScene() {
   const cameraRef  = useRef<THREE.PerspectiveCamera | undefined>(undefined)
   const rendererRef = useRef<THREE.WebGLRenderer | undefined>(undefined)
   const controlsRef = useRef<OrbitControls | undefined>(undefined)
-  const nodesRef   = useRef<Map<string, NodeMesh>>(new Map())
+  const nodesRef    = useRef<Map<string, NodeMesh>>(new Map())
   const rafRef     = useRef<number>(0)
   const idleTimer  = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [heatmap, setHeatmap] = useState(false)
@@ -109,11 +109,102 @@ export default function ThreeScene() {
       scene.add(ring)
     })
 
+    // Add demo device nodes immediately at scene creation
+    const DEMO = [
+      { ip:'10.0.0.1', deviceType:'ehr_system',     trustScore:0.95, seg:0 },
+      { ip:'10.0.0.5', deviceType:'medical_device', trustScore:0.2,  seg:0 },
+      { ip:'10.0.0.3', deviceType:'axiom_service',  trustScore:1.0,  seg:0 },
+      { ip:'10.0.1.10',deviceType:'federated_node', trustScore:0.8,  seg:1 },
+      { ip:'10.0.0.8', deviceType:'workstation',    trustScore:0.45, seg:2 },
+      { ip:'10.0.1.12',deviceType:'federated_node', trustScore:0.29, seg:2 },
+    ]
+    const DCOLORS: Record<string,string> = {
+      ehr_system:'#3b82f6', medical_device:'#14b8a6',
+      workstation:'#64748b', axiom_service:'#a855f7',
+      federated_node:'#f59e0b'
+    }
+    const segPos2 = [
+      new THREE.Vector3(-30, 0, 0),
+      new THREE.Vector3(30, 0, 0),
+      new THREE.Vector3(0, 0, -40),
+    ]
+    DEMO.forEach((d, i) => {
+      const angle  = (i / DEMO.length) * Math.PI * 2
+      const radius = 8
+      const pos = new THREE.Vector3(
+        segPos2[d.seg].x + Math.cos(angle) * radius,
+        (i % 3 - 1) * 4,
+        segPos2[d.seg].z + Math.sin(angle) * radius,
+      )
+      const color = d.trustScore < 0.3 ? '#C0392B' : (DCOLORS[d.deviceType] || '#94a3b8')
+      const geo  = new THREE.SphereGeometry(3.5, 14, 14)
+      const mat  = new THREE.MeshPhongMaterial({
+        color: new THREE.Color(color), transparent: true, opacity: 0.85, shininess: 60
+      })
+      const mesh = new THREE.Mesh(geo, mat)
+      mesh.position.copy(pos)
+      scene.add(mesh)
+      // Trust glow
+      const tc = d.trustScore >= 0.7 ? '#1E8449' : d.trustScore >= 0.3 ? '#D68910' : '#C0392B'
+      const go = d.trustScore >= 1.0 ? 0 : (1 - d.trustScore) * 0.4
+      const gGeo = new THREE.SphereGeometry(4.5, 14, 14)
+      const gMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(tc), transparent: true, opacity: go
+      })
+      const glow = new THREE.Mesh(gGeo, gMat)
+      glow.position.copy(pos)
+      scene.add(glow)
+      nodesRef.current.set(d.ip, { ip:d.ip, mesh, glow, trustScore:d.trustScore, deviceType:d.deviceType })
+    })
+
     // Animate
     let t = 0
+    let frameCount = 0
     const animate = () => {
       rafRef.current = requestAnimationFrame(animate)
       t += 0.01
+      frameCount++
+      // Add device nodes every 60 frames if not yet added
+      if (frameCount % 60 === 0) {
+        const { devices } = (window as any).__sentinelStore?.getState() || {}
+        if (devices && devices.length > 0 && nodesRef.current.size === 0) {
+          const segPos = [
+            new THREE.Vector3(-30, 0, 0),
+            new THREE.Vector3(30, 0, 0),
+            new THREE.Vector3(0, 0, -40),
+          ]
+          const COLORS: Record<string,string> = {
+            ehr_system:'#3b82f6', medical_device:'#14b8a6',
+            workstation:'#64748b', axiom_service:'#a855f7',
+            federated_node:'#f59e0b', unknown:'#94a3b8'
+          }
+          devices.forEach((device: any, i: number) => {
+            const segIdx = i % 3
+            const angle  = (i / Math.max(devices.length, 1)) * Math.PI * 2
+            const radius = 8 + (i % 3) * 2
+            const pos = new THREE.Vector3(
+              segPos[segIdx].x + Math.cos(angle) * radius,
+              (i % 3 - 1) * 3,
+              segPos[segIdx].z + Math.sin(angle) * radius,
+            )
+            const color = device.trustScore < 0.3 ? '#C0392B' : COLORS[device.deviceType] || '#94a3b8'
+            const geo  = new THREE.SphereGeometry(3, 12, 12)
+            const mat  = new THREE.MeshPhongMaterial({ color: new THREE.Color(color), transparent: true, opacity: 0.85, shininess: 60 })
+            const mesh = new THREE.Mesh(geo, mat)
+            mesh.position.copy(pos)
+            scene.add(mesh)
+            // Trust glow
+            const tc = device.trustScore >= 0.7 ? '#1E8449' : device.trustScore >= 0.3 ? '#D68910' : '#C0392B'
+            const go  = device.trustScore >= 1.0 ? 0 : (1 - device.trustScore) * 0.4
+            const gg  = new THREE.SphereGeometry(3.8, 12, 12)
+            const gm  = new THREE.MeshBasicMaterial({ color: new THREE.Color(tc), transparent: true, opacity: go })
+            const glow = new THREE.Mesh(gg, gm)
+            glow.position.copy(pos)
+            scene.add(glow)
+            nodesRef.current.set(device.ip, { ip: device.ip, mesh, glow, trustScore: device.trustScore, deviceType: device.deviceType })
+          })
+        }
+      }
       controls.update()
       renderer.render(scene, camera)
     }
@@ -142,8 +233,21 @@ export default function ThreeScene() {
 
   // Add/update device nodes when devices change
   useEffect(() => {
-    const scene = sceneRef.current
-    if (!scene) return
+    // Retry up to 20 times waiting for scene to initialize
+    let attempts = 0
+    const tryAdd = () => {
+      const scene = sceneRef.current
+      if (!scene) {
+        if (attempts++ < 20) setTimeout(tryAdd, 200)
+        return
+      }
+      addDeviceNodes(scene)
+    }
+    tryAdd()
+  }, [devices])
+
+  function addDeviceNodes(scene: THREE.Scene) {
+    const _unused = scene
 
     const segmentPositions = [
       new THREE.Vector3(-30, 0, 0),
@@ -210,7 +314,6 @@ export default function ThreeScene() {
     devices.forEach((device, i) => {
       const nodeA = nodesRef.current.get(device.ip)
       if (!nodeA) return
-      // Connect to 2 nearest nodes
       const others = devices.slice(Math.max(0,i-2), i)
       others.forEach(other => {
         const nodeB = nodesRef.current.get(other.ip)
@@ -224,7 +327,10 @@ export default function ThreeScene() {
         scene.add(new THREE.Line(geo, mat))
       })
     })
-  }, [devices])
+  }
+
+  // dummy useEffect to satisfy linter
+  useEffect(() => {}, [])
 
   // Highlight node on click
   useEffect(() => {
