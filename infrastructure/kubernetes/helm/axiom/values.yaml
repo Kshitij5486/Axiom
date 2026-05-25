@@ -1,51 +1,88 @@
-﻿global:
-  imageRegistry: ghcr.io/kshitij5486/axiom
-  imageTag: latest
+global:
   namespace: axiom-clinical
+  image:
+    registry: ghcr.io/kshitij5486/axiom
+    pullPolicy: IfNotPresent
 
-causalEngine:
-  replicas: 2
-  image: causal-engine
-  port: 8081
-  resources:
-    requests: {cpu: 500m, memory: 512Mi}
-    limits: {cpu: 1000m, memory: 1Gi}
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 8
-    targetCPU: 70
-
-apiGateway:
-  replicas: 2
-  image: api-gateway
-  graphqlPort: 4000
-  wsPort: 4001
-  resources:
-    requests: {cpu: 250m, memory: 256Mi}
-    limits: {cpu: 500m, memory: 512Mi}
-
-dashboard:
-  replicas: 2
-  image: dashboard
-  port: 80
-  resources:
-    requests: {cpu: 100m, memory: 128Mi}
-    limits: {cpu: 200m, memory: 256Mi}
-
-postgres:
-  storage: 10Gi
-  resources:
-    requests: {cpu: 250m, memory: 512Mi}
-    limits: {cpu: 500m, memory: 1Gi}
-
-monitoring:
-  prometheus:
-    enabled: true
-    retention: 30d
-  grafana:
-    enabled: true
-
-istio:
+# Sentinel sensor DaemonSet
+sentinelSensor:
   enabled: true
-  mtls: STRICT
+  image:
+    tag: "v1.4.0"
+  networkInterface: "eth0"
+  bpfFilter: "tcp port 443"
+  ipcSocket: "/tmp/axiom_sentinel.sock"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "500m"
+
+# Sentinel control plane
+sentinelControlPlane:
+  enabled: true
+  image:
+    tag: "v1.4.0"
+  replicas: 2
+  port: 8090
+  metricsPort: 9182
+  redis:
+    host: axiom-redis
+    port: 6380
+  kafka:
+    brokers: "axiom-kafka:9094"
+  n8nWebhook: "http://n8n:5678/webhook/sentinel"
+  geoipMmdb: "/app/rules/GeoLite2-Country.mmdb"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "512Mi"
+      cpu: "1000m"
+
+# Sentinel graph service
+sentinelGraph:
+  enabled: true
+  image:
+    tag: "v1.4.0"
+  replicas: 1
+  port: 8091
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "200m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+# Sentinel correlator
+sentinelCorrelator:
+  enabled: true
+  image:
+    tag: "v1.4.0"
+  replicas: 1
+  port: 8092
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# PostgreSQL
+postgres:
+  host: axiom-postgres
+  port: 5439
+  database: axiom
+  username: axiom_user
+  existingSecret: axiom-postgres-secret
+
+# Ingress
+ingress:
+  enabled: true
+  className: istio
+  host: axiom.hospital.internal

@@ -1,0 +1,175 @@
+# sentinel-control-plane: can write Kafka, read Redis, call n8n
+# External access only via Istio ingress for admin/security_analyst
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sentinel-control-plane-netpol
+  namespace: {{ .Values.global.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: sentinel-control-plane
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only from Istio ingress gateway
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+      ports:
+        - port: 8090
+    # From sentinel-correlator (internal)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: sentinel-correlator
+      ports:
+        - port: 8090
+  egress:
+    # Kafka
+    - to:
+        - podSelector:
+            matchLabels:
+              app: axiom-kafka
+      ports:
+        - port: 9094
+    # Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app: axiom-redis
+      ports:
+        - port: 6380
+    # n8n webhook
+    - to:
+        - podSelector:
+            matchLabels:
+              app: n8n
+      ports:
+        - port: 5678
+    # DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sentinel-graph-netpol
+  namespace: {{ .Values.global.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: sentinel-graph-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: sentinel-correlator
+      ports:
+        - port: 8091
+  egress:
+    # Kafka
+    - to:
+        - podSelector:
+            matchLabels:
+              app: axiom-kafka
+      ports:
+        - port: 9094
+    # PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app: axiom-postgres
+      ports:
+        - port: 5432
+    # Causal engine
+    - to:
+        - podSelector:
+            matchLabels:
+              app: causal-engine
+      ports:
+        - port: 8081
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sentinel-correlator-netpol
+  namespace: {{ .Values.global.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: sentinel-correlator
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    # Kafka
+    - to:
+        - podSelector:
+            matchLabels:
+              app: axiom-kafka
+      ports:
+        - port: 9094
+    # Causal engine
+    - to:
+        - podSelector:
+            matchLabels:
+              app: causal-engine
+      ports:
+        - port: 8081
+    # Graph service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: sentinel-graph-service
+      ports:
+        - port: 8091
+    # Control plane quarantine API
+    - to:
+        - podSelector:
+            matchLabels:
+              app: sentinel-control-plane
+      ports:
+        - port: 8090
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+
+---
+# Istio AuthorizationPolicy — restrict sentinel REST API to admin/security_analyst
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: sentinel-control-plane-authz
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: sentinel-control-plane
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/axiom-clinical/sa/admin-sa"
+              - "cluster.local/ns/axiom-clinical/sa/security-analyst-sa"
+      to:
+        - operation:
+            paths: ["/sentinel/*", "/health", "/metrics"]

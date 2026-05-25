@@ -1,0 +1,154 @@
+{{- if .Values.sentinelSensor.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sentinel-sensor
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: sentinel-sensor
+    version: {{ .Values.sentinelSensor.image.tag }}
+    component: network-security
+spec:
+  selector:
+    matchLabels:
+      app: sentinel-sensor
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: sentinel-sensor
+        version: {{ .Values.sentinelSensor.image.tag }}
+      annotations:
+        prometheus.io/scrape: "false"
+    spec:
+      # Run on host network to access physical interfaces
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: ClusterFirstWithHostNet
+
+      # Tolerate all taints — run on every node including control plane
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
+        - operator: Exists
+          effect: NoExecute
+        - operator: Exists
+          effect: PreferNoSchedule
+
+      # Only on nodes with hospital network enabled
+      nodeSelector:
+        hospital-network-enabled: "true"
+
+      serviceAccountName: sentinel-sensor-sa
+
+      initContainers:
+        - name: wait-for-socket-dir
+          image: busybox:1.35
+          command: ['sh', '-c', 'mkdir -p /tmp && echo "Socket dir ready"']
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /tmp
+
+      containers:
+        - name: sentinel-sensor
+          image: {{ .Values.global.image.registry }}/sentinel-sensor:{{ .Values.sentinelSensor.image.tag }}
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          command: ["/app/ipc_service"]
+          args: ["$(NETWORK_INTERFACE)"]
+          env:
+            - name: NETWORK_INTERFACE
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-sensor-config
+                  key: networkInterface
+            - name: BPF_FILTER
+              valueFrom:
+                configMapKeyRef:
+                  name: sentinel-sensor-config
+                  key: bpfFilter
+            - name: IPC_SOCKET_PATH
+              value: {{ .Values.sentinelSensor.ipcSocket }}
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+          # NET_ADMIN + NET_RAW required for libpcap
+          # SYS_PTRACE required for process inspection
+          securityContext:
+            privileged: false
+            capabilities:
+              add:
+                - NET_ADMIN
+                - NET_RAW
+                - SYS_PTRACE
+            runAsUser: 0
+
+          resources:
+            requests:
+              memory: {{ .Values.sentinelSensor.resources.requests.memory }}
+              cpu: {{ .Values.sentinelSensor.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.sentinelSensor.resources.limits.memory }}
+              cpu: {{ .Values.sentinelSensor.resources.limits.cpu }}
+
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /tmp
+            - name: sensor-config
+              mountPath: /app/config
+              readOnly: true
+
+          livenessProbe:
+            exec:
+              command: ['ls', '/tmp/axiom_sentinel.sock']
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+
+      volumes:
+        - name: socket-dir
+          hostPath:
+            path: /tmp
+            type: DirectoryOrCreate
+        - name: sensor-config
+          configMap:
+            name: sentinel-sensor-config
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sentinel-sensor-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  networkInterface: {{ .Values.sentinelSensor.networkInterface }}
+  bpfFilter: {{ .Values.sentinelSensor.bpfFilter | quote }}
+  ipcSocket: {{ .Values.sentinelSensor.ipcSocket }}
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sentinel-sensor-sa
+  namespace: {{ .Values.global.namespace }}
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: sentinel-sensor-pdb
+  namespace: {{ .Values.global.namespace }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: sentinel-sensor
+{{- end }}

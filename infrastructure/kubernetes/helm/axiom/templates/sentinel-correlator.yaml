@@ -1,0 +1,65 @@
+{{- if .Values.sentinelCorrelator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-correlator
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: sentinel-correlator
+    component: network-security
+spec:
+  replicas: {{ .Values.sentinelCorrelator.replicas }}
+  selector:
+    matchLabels:
+      app: sentinel-correlator
+  template:
+    metadata:
+      labels:
+        app: sentinel-correlator
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9092"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: sentinel-correlator
+          image: {{ .Values.global.image.registry }}/sentinel-correlator:{{ .Values.sentinelCorrelator.image.tag }}
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.sentinelCorrelator.port }}
+              name: api
+          env:
+            - name: KAFKA_BROKERS
+              value: {{ .Values.sentinelControlPlane.kafka.brokers }}
+            - name: GRAPH_SERVICE_URL
+              value: "http://sentinel-graph-service:{{ .Values.sentinelGraph.port }}"
+            - name: CAUSAL_ENGINE_URL
+              value: "http://causal-engine:8081"
+          resources:
+            requests:
+              memory: {{ .Values.sentinelCorrelator.resources.requests.memory }}
+              cpu: {{ .Values.sentinelCorrelator.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.sentinelCorrelator.resources.limits.memory }}
+              cpu: {{ .Values.sentinelCorrelator.resources.limits.cpu }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.sentinelCorrelator.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-correlator
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: sentinel-correlator
+  ports:
+    - name: api
+      port: {{ .Values.sentinelCorrelator.port }}
+      targetPort: {{ .Values.sentinelCorrelator.port }}
+{{- end }}

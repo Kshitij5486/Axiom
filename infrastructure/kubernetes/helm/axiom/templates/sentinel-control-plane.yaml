@@ -1,0 +1,90 @@
+{{- if .Values.sentinelControlPlane.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-control-plane
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: sentinel-control-plane
+    component: network-security
+spec:
+  replicas: {{ .Values.sentinelControlPlane.replicas }}
+  selector:
+    matchLabels:
+      app: sentinel-control-plane
+  template:
+    metadata:
+      labels:
+        app: sentinel-control-plane
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.sentinelControlPlane.metricsPort }}"
+        prometheus.io/path: "/metrics"
+    spec:
+      # hostNetwork for iptables access
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: sentinel-control-plane
+          image: {{ .Values.global.image.registry }}/sentinel-control-plane:{{ .Values.sentinelControlPlane.image.tag }}
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.sentinelControlPlane.port }}
+              name: api
+            - containerPort: {{ .Values.sentinelControlPlane.metricsPort }}
+              name: metrics
+          env:
+            - name: REDIS_HOST
+              value: {{ .Values.sentinelControlPlane.redis.host }}
+            - name: REDIS_PORT
+              value: "{{ .Values.sentinelControlPlane.redis.port }}"
+            - name: KAFKA_BROKERS
+              value: {{ .Values.sentinelControlPlane.kafka.brokers }}
+            - name: N8N_WEBHOOK_URL
+              value: {{ .Values.sentinelControlPlane.n8nWebhook }}
+            - name: GEOIP_MMDB_PATH
+              value: {{ .Values.sentinelControlPlane.geoipMmdb }}
+            - name: API_PORT
+              value: "{{ .Values.sentinelControlPlane.port }}"
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN"]
+          resources:
+            requests:
+              memory: {{ .Values.sentinelControlPlane.resources.requests.memory }}
+              cpu: {{ .Values.sentinelControlPlane.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.sentinelControlPlane.resources.limits.memory }}
+              cpu: {{ .Values.sentinelControlPlane.resources.limits.cpu }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.sentinelControlPlane.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.sentinelControlPlane.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-control-plane
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: sentinel-control-plane
+spec:
+  selector:
+    app: sentinel-control-plane
+  ports:
+    - name: api
+      port: {{ .Values.sentinelControlPlane.port }}
+      targetPort: {{ .Values.sentinelControlPlane.port }}
+    - name: metrics
+      port: {{ .Values.sentinelControlPlane.metricsPort }}
+      targetPort: {{ .Values.sentinelControlPlane.metricsPort }}
+{{- end }}
