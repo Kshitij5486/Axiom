@@ -56,6 +56,9 @@ export default function ThreeScene() {
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(W, H)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.domElement.style.width = "100%"
+    renderer.domElement.style.height = "100%"
+    renderer.domElement.style.display = "block"
     mountRef.current.appendChild(renderer.domElement)
     rendererRef.current = renderer
 
@@ -71,7 +74,38 @@ export default function ThreeScene() {
     controls.dampingFactor = 0.05
     controls.autoRotate    = true
     controls.autoRotateSpeed = 0.2
+    controls.enableZoom    = true
+    controls.enablePan     = false
+    controls.rotateSpeed   = 0.5
     controlsRef.current = controls
+
+    // Manual mouse handlers for Chrome compatibility
+    let isDown = false, lastX = 0, lastY = 0
+    const onDown = (e: MouseEvent) => {
+      isDown = true; lastX = e.clientX; lastY = e.clientY
+      controls.autoRotate = false
+      clearTimeout(idleTimer.current)
+    }
+    const onMove = (e: MouseEvent) => {
+      if (!isDown) return
+      const dx = e.clientX - lastX
+      const dy = e.clientY - lastY
+      lastX = e.clientX; lastY = e.clientY
+      const spherical = new THREE.Spherical()
+      spherical.setFromVector3(camera.position)
+      spherical.theta -= dx * 0.01
+      spherical.phi   -= dy * 0.01
+      spherical.phi    = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi))
+      camera.position.setFromSpherical(spherical)
+      camera.lookAt(0, 0, 0)
+    }
+    const onUp = () => {
+      isDown = false
+      idleTimer.current = setTimeout(() => { controls.autoRotate = true }, 5000)
+    }
+    mountRef.current!.addEventListener('mousedown', onDown)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
 
     // Stop auto-rotate on interaction, resume after 5s
     const stopRotate = () => {
@@ -392,9 +426,19 @@ export default function ThreeScene() {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {/* Three.js canvas — always mounted */}
+      <div ref={mountRef} style={{
+        position: 'absolute', inset: 0,
+        opacity: heatmapMode ? 0 : 1,
+        transition: 'opacity 0.3s cubic-bezier(0.16,1,0.3,1)',
+        pointerEvents: heatmapMode ? 'none' : 'auto',
+        cursor: 'grab', touchAction: 'none',
+        userSelect: 'none', zIndex: 1,
+      }} />
+
       {/* D3 Heatmap overlay */}
       <div style={{
-        position: 'absolute', inset: 0,
+        position: 'absolute', inset: 0, zIndex: 2,
         opacity: heatmapMode ? 1 : 0,
         pointerEvents: heatmapMode ? 'auto' : 'none',
         transition: 'opacity 0.3s cubic-bezier(0.16,1,0.3,1)',
@@ -404,19 +448,11 @@ export default function ThreeScene() {
         <D3Heatmap width={600} height={400} />
       </div>
 
-      {/* Three.js canvas fade */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        opacity: heatmapMode ? 0 : 1,
-        transition: 'opacity 0.3s cubic-bezier(0.16,1,0.3,1)',
-        pointerEvents: heatmapMode ? 'none' : 'auto',
-      }} ref={mountRef} />
-
       {/* Heatmap toggle */}
       <button
         onClick={() => setHeatmapMode(!heatmapMode)}
         style={{
-          position: 'absolute', top: '12px', right: '12px',
+          position: 'absolute', top: '12px', right: '12px', zIndex: 10,
           background: heatmapMode ? '#004953' : '#F0ECE6',
           border: '1px solid rgba(0,73,83,0.15)',
           borderRadius: '117px', padding: '6px 14px',
@@ -433,7 +469,7 @@ export default function ThreeScene() {
 
       {/* Node legend */}
       <div style={{
-        position: 'absolute', bottom: '12px', left: '12px',
+        position: 'absolute', bottom: '12px', left: '12px', zIndex: 10,
         display: 'flex', gap: '8px', flexWrap: 'wrap',
       }}>
         {Object.entries(DEVICE_COLORS).filter(([k]) => k !== 'unknown').map(([type, color]) => (

@@ -67,7 +67,7 @@ export function useSentinelSSE() {
   const connect = useCallback(() => {
     esRef.current?.close()
     try {
-      const es = new EventSource('http://localhost:8090/sentinel/stream')
+      const es = new EventSource('http://172.30.88.1:8090/sentinel/stream')
       esRef.current = es
       es.onopen = () => { setSseConnected(true); retry.current = 1000 }
       es.onmessage = (e) => { if (e.data) queue.current.push(e.data) }
@@ -87,8 +87,8 @@ export function useSentinelSSE() {
     const poll = async () => {
       try {
         const [sr, dr] = await Promise.all([
-          fetch('http://localhost:8090/sentinel/stats'),
-          fetch('http://localhost:8090/sentinel/devices'),
+          fetch('http://172.30.88.1:8090/sentinel/stats'),
+          fetch('http://172.30.88.1:8090/sentinel/devices'),
         ])
         const s = await sr.json()
         updateStats({ threatsPerHour: s.threats_total || 0, activeQuarantines: s.active_quarantines || 0 })

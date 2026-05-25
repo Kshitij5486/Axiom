@@ -159,7 +159,7 @@ export default function DeviceRegistry() {
     const btn = e.currentTarget as HTMLButtonElement
     btn.textContent = '✓ Quarantined'
     btn.style.background = '#1E8449'
-    try { await fetch(`http://localhost:8090/sentinel/quarantine/${ip}`, { method: 'POST' }) } catch {}
+    try { await fetch(`http://172.30.88.1:8090/sentinel/quarantine/${ip}`, { method: 'POST' }) } catch {}
   }
 
   return (

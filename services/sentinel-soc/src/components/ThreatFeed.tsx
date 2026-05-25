@@ -38,10 +38,13 @@ export default function ThreatFeed() {
     setSelectedThreat(t)
   }
 
+  const [quarantined, setQuarantined] = useState<Set<string>>(new Set())
+
   const quarantine = async (ip: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    setQuarantined(prev => new Set([...prev, ip]))
     try {
-      await fetch(`http://localhost:8090/sentinel/quarantine/${ip}`, { method: 'POST' })
+      await fetch(`http://172.30.88.1:8090/sentinel/quarantine/${ip}`, { method: 'POST' })
     } catch {}
   }
 
@@ -118,6 +121,7 @@ export default function ThreatFeed() {
             <ThreatCard
               key={t.id} threat={t}
               expanded={expanded === t.id}
+              isQuarantined={quarantined.has(t.srcIp)}
               onClick={() => handleCard(t)}
               onQuarantine={(e) => quarantine(t.srcIp, e)}
             />
@@ -134,8 +138,8 @@ export default function ThreatFeed() {
   )
 }
 
-function ThreatCard({ threat: t, expanded, onClick, onQuarantine }: {
-  threat: ThreatEvent; expanded: boolean
+function ThreatCard({ threat: t, expanded, isQuarantined, onClick, onQuarantine }: {
+  threat: ThreatEvent; expanded: boolean; isQuarantined?: boolean
   onClick: () => void; onQuarantine: (e: React.MouseEvent) => void
 }) {
   const sev   = SEV_COLORS[t.severity] || SEV_COLORS.MEDIUM
@@ -211,18 +215,17 @@ function ThreatCard({ threat: t, expanded, onClick, onQuarantine }: {
               }}>{JSON.stringify(t, null, 2)}</pre>
               <button onClick={onQuarantine} style={{
                 marginTop: '8px', width: '100%',
-                background: '#C0392B', color: 'white',
-                border: 'none', borderRadius: '117px',
-                padding: '8px', cursor: 'pointer',
+                background: isQuarantined ? '#1E8449' : '#C0392B',
+                color: 'white', border: 'none', borderRadius: '117px',
+                padding: '8px', cursor: isQuarantined ? 'default' : 'pointer',
                 fontFamily: 'Inter Tight, sans-serif',
                 fontSize: '10px', fontWeight: 700,
                 textTransform: 'uppercase', letterSpacing: '0.1em',
                 boxShadow: '0 10px 30px rgba(0,73,83,0.2)',
-                transition: 'transform 0.2s',
-              }}
-                onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')}
-                onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-              >Quarantine IP</button>
+                transition: 'all 0.3s cubic-bezier(0.16,1,0.3,1)',
+              }}>
+                {isQuarantined ? '✓ Quarantined' : 'Quarantine IP'}
+              </button>
             </div>
           </motion.div>
         )}
