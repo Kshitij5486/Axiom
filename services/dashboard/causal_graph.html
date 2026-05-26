@@ -1,6 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+// ── Axiom Mock API — Production Mode ──
+const MOCK_PATIENTS = [
+  {id:'pt-001',name:'Amit Singh',age:45,diagnosis:'CKD Stage 3',ward:'Nephrology',vitals:{creatinine:3.2,bp_systolic:158,glucose:142,heart_rate:88},risk_score:0.73},
+  {id:'pt-002',name:'Priya Patel',age:62,diagnosis:'T2DM + HTN',ward:'Endocrinology',vitals:{creatinine:1.1,bp_systolic:172,glucose:285,heart_rate:92},risk_score:0.81},
+  {id:'pt-003',name:'Rahul Sharma',age:38,diagnosis:'Sepsis',ward:'ICU',vitals:{creatinine:2.8,bp_systolic:95,glucose:198,heart_rate:118},risk_score:0.91},
+  {id:'pt-004',name:'Sunita Verma',age:55,diagnosis:'CHF',ward:'Cardiology',vitals:{creatinine:1.9,bp_systolic:145,glucose:110,heart_rate:76},risk_score:0.65},
+  {id:'pt-005',name:'Mohammed Khan',age:70,diagnosis:'COPD',ward:'Pulmonology',vitals:{creatinine:1.2,bp_systolic:138,glucose:95,heart_rate:84},risk_score:0.58}
+];
+const MOCK_GRAPHQL_RESPONSE = {
+  data: { patients: { nodes: MOCK_PATIENTS } }
+};
+const MOCK_CAUSAL_GRAPHS = {};
+MOCK_PATIENTS.forEach(p => {
+  MOCK_CAUSAL_GRAPHS[p.id] = {
+    graph_id: 'graph-' + p.id,
+    patient_id: p.id,
+    nodes: [
+      {id:'creatinine', label:'Creatinine', type:'biomarker', x:-1, y:0},
+      {id:'bp', label:'Blood Pressure', type:'biomarker', x:1, y:0},
+      {id:'glucose', label:'Glucose', type:'biomarker', x:0, y:-1},
+      {id:'aki_risk', label:'AKI Risk', type:'outcome', x:0, y:1},
+      {id:'treatment', label:'Treatment', type:'intervention', x:0, y:2}
+    ],
+    edges: [
+      {source:'creatinine', target:'aki_risk', effect:0.72, p_value:0.001},
+      {source:'bp', target:'aki_risk', effect:0.45, p_value:0.01},
+      {source:'glucose', target:'aki_risk', effect:0.31, p_value:0.05},
+      {source:'aki_risk', target:'treatment', effect:0.85, p_value:0.001}
+    ],
+    causal_effect: p.risk_score,
+    confidence_interval: [p.risk_score - 0.08, p.risk_score + 0.08]
+  };
+});
+
+// Override fetch for local API calls
+const _originalFetch = window.fetch;
+window.fetch = function(url, options) {
+  const urlStr = String(url);
+  if (urlStr.includes('localhost:4000') || urlStr.includes('graphql')) {
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(MOCK_GRAPHQL_RESPONSE)
+    });
+  }
+  if (urlStr.includes('localhost:8081') || urlStr.includes('causal/graph')) {
+    const patientId = urlStr.split('/').pop() || 'pt-001';
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(MOCK_CAUSAL_GRAPHS[patientId] || MOCK_CAUSAL_GRAPHS['pt-001'])
+    });
+  }
+  if (urlStr.includes('localhost:8090') || urlStr.includes('sentinel')) {
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({threats:[], devices:[], total:0, status:'ok'})
+    });
+  }
+  return _originalFetch.apply(this, arguments);
+};
+console.log('[Axiom] Mock API active — production mode');
+</script>
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AXIOM | Causal Graph Explorer</title>
@@ -232,7 +295,7 @@ html,body{height:100%;overflow:hidden;font-family:'Albert Sans',sans-serif;backg
   <button class="bnav-btn active"><i class="ph ph-graph"></i> Causal Graph</button>
   <button class="bnav-btn" onclick="location.href='counterfactual.html'"><i class="ph ph-sliders"></i> Counterfactual</button>
   <button class="bnav-btn" onclick="location.href='population.html'"><i class="ph ph-globe"></i> Population</button>
-<button class="bnav-btn" onclick="location.href='http://localhost:5173'"><i class="ph ph-shield-check"></i> Sentinel</button>
+<button class="bnav-btn" onclick="location.href='https://axiom-sentinel.vercel.app'"><i class="ph ph-shield-check"></i> Sentinel</button>
 </div>
 
 <script>
@@ -769,7 +832,9 @@ async function loadGraph(patientId){
       }`,
       variables: { pid: patientId }
     };
-    const res = await fetch('http://localhost:4000/graphql', {
+    // MOCK: return demo data for production
+    const res = {ok:true, json: async()=>({data:{patients:{nodes:[{id:'pt-001',name:'Amit Singh',age:45,diagnosis:'CKD Stage 3',ward:'Nephrology',vitals:{creatinine:3.2,bp_systolic:158,glucose:142,heart_rate:88},risk_score:0.73},{id:'pt-002',name:'Priya Patel',age:62,diagnosis:'T2DM + HTN',ward:'Endocrinology',vitals:{creatinine:1.1,bp_systolic:172,glucose:285,heart_rate:92},risk_score:0.81},{id:'pt-003',name:'Rahul Sharma',age:38,diagnosis:'Sepsis',ward:'ICU',vitals:{creatinine:2.8,bp_systolic:95,glucose:198,heart_rate:118},risk_score:0.91},{id:'pt-004',name:'Sunita Verma',age:55,diagnosis:'CHF',ward:'Cardiology',vitals:{creatinine:1.9,bp_systolic:145,glucose:110,heart_rate:76},risk_score:0.65},{id:'pt-005',name:'Mohammed Khan',age:70,diagnosis:'COPD',ward:'Pulmonology',vitals:{creatinine:1.2,bp_systolic:138,glucose:95,heart_rate:84},risk_score:0.58}]}})}}
+    if(false){ const res2 = await fetch('http://localhost:4000/graphql', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify(gqlQuery),
@@ -790,7 +855,9 @@ async function loadGraph(patientId){
 
   // Strategy 2: Try REST causal engine directly (port 8081)
   try {
-    const res = await fetch(`http://localhost:8081/causal/graph/${patientId}`, {
+    // MOCK causal graph
+    const res = {ok:true, json: async()=>({graph_id:`graph-${patientId}`,nodes:[{id:'creatinine',label:'Creatinine',x:0,y:0},{id:'bp',label:'Blood Pressure',x:1,y:0},{id:'glucose',label:'Glucose',x:0.5,y:1},{id:'aki_risk',label:'AKI Risk',x:0.5,y:2}],edges:[{source:'creatinine',target:'aki_risk',effect:0.72},{source:'bp',target:'aki_risk',effect:0.45},{source:'glucose',target:'aki_risk',effect:0.31}],patient_id:patientId})}
+    if(false){ const res2 = await fetch(`http://localhost:8081/causal/graph/${patientId}`, {
       signal: AbortSignal.timeout(3000)
     });
     if(!res.ok) throw new Error('REST error');

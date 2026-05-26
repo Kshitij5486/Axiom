@@ -3,6 +3,9 @@ import { useSentinelStore } from '../store/sentinelStore'
 import type { ThreatEvent, Device, CorrelationEvent } from '../types/sentinel'
 
 export function useSentinelSSE() {
+  // Skip SSE in production — mock handles data
+  const isMock = (import.meta as any).env?.VITE_USE_MOCK === 'true' || (import.meta as any).env?.PROD
+  if (isMock) return
   const esRef    = useRef<EventSource | null>(null)
   const queue    = useRef<string[]>([])
   const raf      = useRef<number>(0)

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useSentinelSSE } from './hooks/useSentinelSSE'
 import Navbar from './components/Navbar'
 import ThreeScene from './components/ThreeScene'
@@ -9,9 +10,18 @@ import KillChainPanel from './components/KillChainPanel'
 import CorrelationModal from './components/CorrelationModal'
 import CriticalOverlay from './components/CriticalOverlay'
 import { useSentinelStore } from './store/sentinelStore'
+import { startMockSSE } from './mock/mockSSE'
+import { IS_MOCK } from './config'
 
 export default function App() {
   useSentinelSSE()
+
+  // Use mock data in production (Vercel)
+  useEffect(() => {
+    if (IS_MOCK) {
+      startMockSSE()
+    }
+  }, [])
   const { selectedCorrelation, killChain } = useSentinelStore()
 
   return (

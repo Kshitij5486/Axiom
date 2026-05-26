@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "name": "axiom-dashboard",
+  "builds": [
+    { "src": "*.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/", "dest": "/index.html" },
+    { "src": "/dashboard", "dest": "/dashboard.html" },
+    { "src": "/causal-graph", "dest": "/causal_graph.html" },
+    { "src": "/counterfactual", "dest": "/counterfactual.html" },
+    { "src": "/population", "dest": "/population.html" }
+  ]
+}
