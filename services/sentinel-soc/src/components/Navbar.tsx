@@ -149,10 +149,10 @@ export default function Navbar() {
       {/* Nav links */}
       <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
         {[
-          { label: 'Dashboard',       href: 'http://localhost:3000/dashboard.html' },
-          { label: 'Causal Graph',    href: 'http://localhost:3000/causal_graph.html' },
-          { label: 'Counterfactual',  href: 'http://localhost:3000/counterfactual.html' },
-          { label: 'Population',      href: 'http://localhost:3000/population.html' },
+          { label: 'Dashboard',       href: 'https://axiom-dashboard-pi.vercel.app/dashboard.html' },
+          { label: 'Causal Graph',    href: 'https://axiom-dashboard-pi.vercel.app/causal_graph.html' },
+          { label: 'Counterfactual',  href: 'https://axiom-dashboard-pi.vercel.app/counterfactual.html' },
+          { label: 'Population',      href: 'https://axiom-dashboard-pi.vercel.app/population.html' },
         ].map(l => (
           <a key={l.label} href={l.href} style={{
             padding: '5px 12px', borderRadius: '117px', border: 'none',

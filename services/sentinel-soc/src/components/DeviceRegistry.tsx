@@ -288,7 +288,7 @@ export default function DeviceRegistry() {
                             <div style={{ fontFamily: 'Playfair Display, serif', fontSize: '13px', color: '#3E2723' }}>
                               Patient {device.axiomPatientId}
                             </div>
-                            <a href="http://localhost:3000/dashboard.html" style={{
+                            <a href="https://axiom-dashboard-pi.vercel.app/dashboard.html" style={{
                               fontFamily: 'Inter Tight, sans-serif', fontSize: '10px',
                               color: '#004953', textDecoration: 'none', fontWeight: 600,
                             }}>View clinical dashboard →</a>
