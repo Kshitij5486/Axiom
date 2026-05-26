@@ -269,6 +269,124 @@ def get_recent_audit():
     trail = AuditTrail()
     return {"events": trail.get_recent_audit_events()}
 
+
+
+# ── Sentinel ZK Proof Endpoints ──
+
+@app.post("/zk/network-integrity/generate")
+async def generate_network_integrity(request: Request):
+    """Generate ZK proof for a batch of network flow records."""
+    body = await request.json()
+    proof = NetworkIntegrityProof.generate(
+        flow_batch  = body.get("flow_batch", []),
+        hospital_id = body.get("hospital_id", ""),
+        timestamp   = body.get("timestamp", datetime.now(timezone.utc).isoformat()),
+        kafka_offset = body.get("kafka_offset", 0),
+    )
+    await store_proof(proof, "NETWORK_INTEGRITY")
+    return proof
+
+@app.post("/zk/network-integrity/verify")
+async def verify_network_integrity(request: Request):
+    """Verify a network integrity proof."""
+    body = await request.json()
+    result = NetworkIntegrityProof.verify(
+        proof_hash   = body["proof_hash"],
+        flow_batch   = body.get("flow_batch", []),
+        hospital_id  = body.get("hospital_id", ""),
+        timestamp    = body.get("timestamp", ""),
+        kafka_offset = body.get("kafka_offset", 0),
+    )
+    return result
+
+@app.post("/zk/federated-traffic/generate")
+async def generate_federated_traffic(request: Request):
+    """Generate ZK proof for federated learning round traffic."""
+    body = await request.json()
+    proof = FederatedTrafficProof.generate(
+        round_id                  = body.get("round_id", ""),
+        gradient_hashes           = body.get("gradient_hashes", []),
+        hospital_ids              = body.get("hospital_ids", []),
+        expected_volume_bytes     = body.get("expected_volume_bytes", 0),
+        actual_volume_bytes       = body.get("actual_volume_bytes", 0),
+        round_start               = body.get("round_start", ""),
+        round_end                 = body.get("round_end", ""),
+        sentinel_control_plane_id = body.get("sentinel_control_plane_id", "sentinel-1"),
+    )
+    await store_proof(proof, "FEDERATED_TRAFFIC")
+    return proof
+
+@app.post("/zk/federated-traffic/verify")
+async def verify_federated_traffic(request: Request):
+    """Verify a federated traffic proof."""
+    body = await request.json()
+    result = FederatedTrafficProof.verify(
+        proof_hash                = body["proof_hash"],
+        round_id                  = body.get("round_id", ""),
+        gradient_hashes           = body.get("gradient_hashes", []),
+        hospital_ids              = body.get("hospital_ids", []),
+        expected_volume_bytes     = body.get("expected_volume_bytes", 0),
+        actual_volume_bytes       = body.get("actual_volume_bytes", 0),
+        round_start               = body.get("round_start", ""),
+        round_end                 = body.get("round_end", ""),
+        sentinel_control_plane_id = body.get("sentinel_control_plane_id", "sentinel-1"),
+    )
+    return result
+
+@app.post("/zk/device-trust/generate")
+async def generate_device_trust(request: Request):
+    """Generate ZK proof for device trust score."""
+    body = await request.json()
+    proof = DeviceTrustProof.generate(
+        device_ip        = body.get("device_ip", ""),
+        trust_score      = body.get("trust_score", 1.0),
+        evidence_events  = body.get("evidence_events", []),
+        hospital_id      = body.get("hospital_id", ""),
+        axiom_patient_id = body.get("axiom_patient_id"),
+    )
+    await store_proof(proof, "DEVICE_TRUST")
+    return proof
+
+@app.post("/zk/device-trust/verify")
+async def verify_device_trust(request: Request):
+    """Verify a device trust proof."""
+    body = await request.json()
+    result = DeviceTrustProof.verify(
+        proof_hash       = body["proof_hash"],
+        device_ip        = body.get("device_ip", ""),
+        trust_score      = body.get("trust_score", 1.0),
+        evidence_events  = body.get("evidence_events", []),
+        hospital_id      = body.get("hospital_id", ""),
+        axiom_patient_id = body.get("axiom_patient_id"),
+    )
+    return result
+
+@app.get("/zk/sentinel/proofs")
+async def get_sentinel_proofs(proof_type: str = None, limit: int = 50):
+    """Get Sentinel ZK proofs from audit trail."""
+    try:
+        conn = get_db()
+        cur  = conn.cursor()
+        if proof_type:
+            cur.execute(
+                "SELECT * FROM zk_audit_trail WHERE proof_type = %s "
+                "ORDER BY created_at DESC LIMIT %s",
+                (proof_type, limit)
+            )
+        else:
+            cur.execute(
+                "SELECT * FROM zk_audit_trail WHERE proof_type IN "
+                "('NETWORK_INTEGRITY','FEDERATED_TRAFFIC','DEVICE_TRUST') "
+                "ORDER BY created_at DESC LIMIT %s",
+                (limit,)
+            )
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return {"proofs": [dict(r) for r in rows], "total": len(rows)}
+    except Exception as e:
+        return {"proofs": [], "total": 0, "error": str(e)}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8084)
