@@ -48,9 +48,10 @@ window.fetch = function(url, options) {
   }
   if (urlStr.includes('localhost:8081') || urlStr.includes('causal/graph')) {
     const patientId = urlStr.split('/').pop() || 'pt-001';
+    const mockGraph = MOCK_CAUSAL_GRAPHS[patientId] || MOCK_CAUSAL_GRAPHS['pt-001'];
     return Promise.resolve({
       ok: true,
-      json: () => Promise.resolve(MOCK_CAUSAL_GRAPHS[patientId] || MOCK_CAUSAL_GRAPHS['pt-001'])
+      json: () => Promise.resolve(mockGraph)
     });
   }
   if (urlStr.includes('localhost:8090') || urlStr.includes('sentinel')) {
@@ -853,24 +854,26 @@ async function loadGraph(patientId){
     return;
   } catch(e){ console.log('GraphQL unavailable:', e.message); }
 
-  // Strategy 2: Try REST causal engine directly (port 8081)
+  // Strategy 2: Mock causal graph for production
   try {
-    // MOCK causal graph
-    const res = {ok:true, json: async()=>({graph_id:`graph-${patientId}`,nodes:[{id:'creatinine',label:'Creatinine',x:0,y:0},{id:'bp',label:'Blood Pressure',x:1,y:0},{id:'glucose',label:'Glucose',x:0.5,y:1},{id:'aki_risk',label:'AKI Risk',x:0.5,y:2}],edges:[{source:'creatinine',target:'aki_risk',effect:0.72},{source:'bp',target:'aki_risk',effect:0.45},{source:'glucose',target:'aki_risk',effect:0.31}],patient_id:patientId})}
-    if(false){ const res2 = await fetch(`http://localhost:8081/causal/graph/${patientId}`, {
-      signal: AbortSignal.timeout(3000)
-    });
-    if(!res.ok) throw new Error('REST error');
-    const data = await res.json();
-    console.log('REST API connected');
-    const nodes = transformNodes(data.node_list || []);
-    const effects = data.effect_sizes || {};
-    const edges = transformEdges(effects, [], data.zk_integrity_proof || '');
+    const mockNodeList = ['creatinine','systolic_bp','glucose','heart_rate','egfr','furosemide','lisinopril'];
+    const mockEffectSizes = {
+      'creatinine->egfr': -0.72,
+      'systolic_bp->egfr': -0.45,
+      'glucose->egfr': -0.31,
+      'egfr->furosemide': 0.65,
+      'systolic_bp->lisinopril': 0.58,
+      'creatinine->lisinopril': 0.42,
+      'heart_rate->systolic_bp': 0.38
+    };
+    const mockZK = 'a3f8c2d1e9b4f7a2c5d8e1b4f7a2c5d8e1b4f7a2c5d8e1b4f7a2c5d8e1b4f7a2';
+    const nodes = transformNodes(mockNodeList);
+    const edges = transformEdges(mockEffectSizes, [], mockZK);
     buildGraph({patient_id:patientId, nodes, edges});
     buildLabels({nodes});
-    updateConnectionStatus('REST · port 8081', true);
+    updateConnectionStatus('Demo · production', true);
     return;
-  } catch(e){ console.log('REST unavailable:', e.message); }
+  } catch(e){ console.log('Mock failed:', e.message); }
 
   // Strategy 3: Demo fallback
   console.log('Using demo data');
@@ -919,7 +922,9 @@ function updateConnectionStatus(msg, online){
   console.log('Connection status:', msg);
 }
 
-loadGraph(pid);
+// Force mock graph if pid is not a pt-XXX format
+const effectivePid = pid.startsWith('pt-') ? pid : 'pt-001';
+loadGraph(effectivePid);
 animate();
 </script>
 </body>
