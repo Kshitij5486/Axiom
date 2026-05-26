@@ -47,3 +47,42 @@ scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
+  - job_name: sentinel-control-plane
+    static_configs:
+      - targets: ["localhost:9182"]
+    metrics_path: /metrics
+    scrape_interval: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: sentinel-control-plane
+
+  - job_name: sentinel-graph-service
+    static_configs:
+      - targets: ["localhost:8091"]
+    metrics_path: /metrics
+    scrape_interval: 15s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: sentinel-graph-service
+
+  - job_name: sentinel-correlator
+    static_configs:
+      - targets: ["localhost:8092"]
+    metrics_path: /metrics
+    scrape_interval: 15s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: sentinel-correlator
+
+  - job_name: sentinel-zk-service
+    static_configs:
+      - targets: ["localhost:8085"]
+    metrics_path: /metrics
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: sentinel-zk-service
