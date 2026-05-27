@@ -820,41 +820,6 @@ const urlParams = new URLSearchParams(window.location.search);
 const pid = urlParams.get('patient') || '3319a93d';
 
 async function loadGraph(patientId){
-  // Strategy 1: Try GraphQL gateway (port 4000)
-  try {
-    const gqlQuery = {
-      query: `query GetCausalGraph($pid: String!) {
-        causalGraph(patientId: $pid) {
-          nodeList
-          effectSizes
-          zkIntegrityProof
-          nlpEdges
-        }
-      }`,
-      variables: { pid: patientId }
-    };
-    // MOCK: return demo data for production
-    const res = {ok:true, json: async()=>({data:{patients:{nodes:[{id:'pt-001',name:'Amit Singh',age:45,diagnosis:'CKD Stage 3',ward:'Nephrology',vitals:{creatinine:3.2,bp_systolic:158,glucose:142,heart_rate:88},risk_score:0.73},{id:'pt-002',name:'Priya Patel',age:62,diagnosis:'T2DM + HTN',ward:'Endocrinology',vitals:{creatinine:1.1,bp_systolic:172,glucose:285,heart_rate:92},risk_score:0.81},{id:'pt-003',name:'Rahul Sharma',age:38,diagnosis:'Sepsis',ward:'ICU',vitals:{creatinine:2.8,bp_systolic:95,glucose:198,heart_rate:118},risk_score:0.91},{id:'pt-004',name:'Sunita Verma',age:55,diagnosis:'CHF',ward:'Cardiology',vitals:{creatinine:1.9,bp_systolic:145,glucose:110,heart_rate:76},risk_score:0.65},{id:'pt-005',name:'Mohammed Khan',age:70,diagnosis:'COPD',ward:'Pulmonology',vitals:{creatinine:1.2,bp_systolic:138,glucose:95,heart_rate:84},risk_score:0.58}]}})}}
-    if(false){ const res2 = await fetch('http://localhost:4000/graphql', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(gqlQuery),
-      signal: AbortSignal.timeout(3000)
-    });
-    if(!res.ok) throw new Error('GraphQL error');
-    const json = await res.json();
-    const data = json?.data?.causalGraph;
-    if(!data) throw new Error('No data');
-    console.log('GraphQL connected');
-    const nodes = transformNodes(data.nodeList || []);
-    const edges = transformEdges(data.effectSizes || {}, data.nlpEdges || [], data.zkIntegrityProof || '');
-    buildGraph({patient_id:patientId, nodes, edges});
-    buildLabels({nodes});
-    updateConnectionStatus('GraphQL · port 4000', true);
-    return;
-  } catch(e){ console.log('GraphQL unavailable:', e.message); }
-
-  // Strategy 2: Mock causal graph for production
   try {
     const mockNodeList = ['creatinine','systolic_bp','glucose','heart_rate','egfr','furosemide','lisinopril'];
     const mockEffectSizes = {
@@ -866,20 +831,18 @@ async function loadGraph(patientId){
       'creatinine->lisinopril': 0.42,
       'heart_rate->systolic_bp': 0.38
     };
-    const mockZK = 'a3f8c2d1e9b4f7a2c5d8e1b4f7a2c5d8e1b4f7a2c5d8e1b4f7a2c5d8e1b4f7a2';
+    const mockZK = 'a3f8c2d1e9b4f7a2c5d8e1b4f7a2c5d8';
     const nodes = transformNodes(mockNodeList);
     const edges = transformEdges(mockEffectSizes, [], mockZK);
     buildGraph({patient_id:patientId, nodes, edges});
     buildLabels({nodes});
     updateConnectionStatus('Demo · production', true);
-    return;
-  } catch(e){ console.log('Mock failed:', e.message); }
-
-  // Strategy 3: Demo fallback
-  console.log('Using demo data');
-  buildGraph(DEMO_GRAPH);
-  buildLabels(DEMO_GRAPH);
-  updateConnectionStatus('Demo data · offline', false);
+  } catch(e) {
+    console.log('loadGraph error:', e.message);
+    buildGraph(DEMO_GRAPH);
+    buildLabels(DEMO_GRAPH);
+    updateConnectionStatus('Demo data · offline', false);
+  }
 }
 
 function transformNodes(nodeList){
