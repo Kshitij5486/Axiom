@@ -1,14 +1,15 @@
 {
   "version": 2,
-  "name": "axiom-dashboard",
-  "builds": [
-    { "src": "*.html", "use": "@vercel/static" }
+  "rewrites": [
+    { "source": "/sentinel/(.*)", "destination": "/sentinel/$1" },
+    { "source": "/sentinel", "destination": "/sentinel/index.html" }
   ],
-  "routes": [
-    { "src": "/", "dest": "/index.html" },
-    { "src": "/dashboard", "dest": "/dashboard.html" },
-    { "src": "/causal-graph", "dest": "/causal_graph.html" },
-    { "src": "/counterfactual", "dest": "/counterfactual.html" },
-    { "src": "/population", "dest": "/population.html" }
+  "headers": [
+    {
+      "source": "/sentinel/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
   ]
 }
